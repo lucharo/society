@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -105,6 +106,6 @@ func typeName(v any) string {
 	case *STDIOTransport:
 		return "STDIOTransport"
 	default:
-		return "unknown"
+		return fmt.Sprintf("unknown(%T)", v)
 	}
 }

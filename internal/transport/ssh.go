@@ -100,7 +100,7 @@ func (t *SSHTransport) Open(ctx context.Context) error {
 		return fmt.Errorf("ssh: parsing key: %w", err)
 	}
 
-	// TODO: support known_hosts verification via knownhosts.New()
+	// TODO(#1): support known_hosts verification via knownhosts.New()
 	slog.Warn("ssh: host key verification disabled — vulnerable to MITM attacks",
 		"host", t.config.Host)
 	sshCfg := &ssh.ClientConfig{

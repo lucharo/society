@@ -62,9 +62,13 @@ func (s *Server) handleAgentCard(w http.ResponseWriter) {
 }
 
 func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody))
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody+1))
 	if err != nil {
 		writeRPCError(w, nil, -32700, "could not read body")
+		return
+	}
+	if len(body) > maxRequestBody {
+		writeRPCError(w, nil, -32700, "request body too large")
 		return
 	}
 

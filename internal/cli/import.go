@@ -91,7 +91,15 @@ func loadSource(source string) ([]byte, error) {
 			return nil, fmt.Errorf("fetching %s: status %d", source, resp.StatusCode)
 		}
 		// Cap at 10MB to prevent abuse from untrusted URLs
-		return io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+		const maxImportSize = 10 << 20
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxImportSize+1))
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", source, err)
+		}
+		if len(data) > maxImportSize {
+			return nil, fmt.Errorf("response from %s exceeds 10MB limit", source)
+		}
+		return data, nil
 	}
 
 	data, err := os.ReadFile(source)
