@@ -188,7 +188,7 @@ func (t *STDIOTransport) Send(ctx context.Context, payload []byte) ([]byte, erro
 		return nil, fmt.Errorf("stdio: writing to subprocess: %w", err)
 	}
 
-	// Wait for response with timeout
+	// Wait for response — caller controls timeout via context
 	select {
 	case resp, ok := <-ch:
 		if !ok {
@@ -200,11 +200,6 @@ func (t *STDIOTransport) Send(ctx context.Context, payload []byte) ([]byte, erro
 		delete(t.pending, idKey)
 		t.mu.Unlock()
 		return nil, ctx.Err()
-	case <-time.After(30 * time.Second):
-		t.mu.Lock()
-		delete(t.pending, idKey)
-		t.mu.Unlock()
-		return nil, fmt.Errorf("stdio: response timeout")
 	}
 }
 

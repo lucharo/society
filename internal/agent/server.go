@@ -51,13 +51,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// maxRequestBody is the maximum size of a JSON-RPC request body (1MB).
+const maxRequestBody = 1 << 20
+
 func (s *Server) handleAgentCard(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.card)
+	if err := json.NewEncoder(w).Encode(s.card); err != nil {
+		slog.Error("encoding agent card", "err", err)
+	}
 }
 
 func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBody))
 	if err != nil {
 		writeRPCError(w, nil, -32700, "could not read body")
 		return

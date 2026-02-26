@@ -99,7 +99,7 @@ func Discover(registryPath, rawURL string, in io.Reader, out io.Writer) error {
 }
 
 func fetchAgentCard(rawURL string) (*models.AgentCard, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	httpClient := &http.Client{Timeout: 10 * time.Second}
 
 	// Try .well-known first if URL doesn't end in .json
 	urls := []string{rawURL}
@@ -110,31 +110,36 @@ func fetchAgentCard(rawURL string) (*models.AgentCard, error) {
 
 	var lastErr error
 	for _, u := range urls {
-		resp, err := client.Get(u)
+		card, err := tryFetchCard(httpClient, u)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			lastErr = fmt.Errorf("GET %s: status %d", u, resp.StatusCode)
-			continue
-		}
-
-		var card models.AgentCard
-		if err := json.NewDecoder(resp.Body).Decode(&card); err != nil {
-			lastErr = fmt.Errorf("parsing response from %s: %w", u, err)
-			continue
-		}
-
-		if card.Name == "" {
-			lastErr = fmt.Errorf("invalid agent card from %s: missing name", u)
-			continue
-		}
-
-		return &card, nil
+		return card, nil
 	}
 
 	return nil, fmt.Errorf("discovering agent: %w", lastErr)
+}
+
+func tryFetchCard(client *http.Client, u string) (*models.AgentCard, error) {
+	resp, err := client.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GET %s: status %d", u, resp.StatusCode)
+	}
+
+	var card models.AgentCard
+	if err := json.NewDecoder(resp.Body).Decode(&card); err != nil {
+		return nil, fmt.Errorf("parsing response from %s: %w", u, err)
+	}
+
+	if card.Name == "" {
+		return nil, fmt.Errorf("invalid agent card from %s: missing name", u)
+	}
+
+	return &card, nil
 }

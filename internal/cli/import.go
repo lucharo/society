@@ -90,7 +90,8 @@ func loadSource(source string) ([]byte, error) {
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			return nil, fmt.Errorf("fetching %s: status %d", source, resp.StatusCode)
 		}
-		return io.ReadAll(resp.Body)
+		// Cap at 10MB to prevent abuse from untrusted URLs
+		return io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	}
 
 	data, err := os.ReadFile(source)

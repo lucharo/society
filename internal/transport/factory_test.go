@@ -20,19 +20,19 @@ func TestFactory(t *testing.T) {
 			name:     "nil config returns HTTP",
 			url:      "http://localhost:8080",
 			tc:       nil,
-			wantType: "*transport.HTTPTransport",
+			wantType: "HTTPTransport",
 		},
 		{
 			name:     "empty type returns HTTP",
 			url:      "http://localhost:8080",
 			tc:       &models.TransportConfig{Type: ""},
-			wantType: "*transport.HTTPTransport",
+			wantType: "HTTPTransport",
 		},
 		{
 			name:     "http type returns HTTP",
 			url:      "http://localhost:8080",
 			tc:       &models.TransportConfig{Type: "http"},
-			wantType: "*transport.HTTPTransport",
+			wantType: "HTTPTransport",
 		},
 		{
 			name: "ssh type returns SSH",
@@ -40,7 +40,7 @@ func TestFactory(t *testing.T) {
 			tc: &models.TransportConfig{Type: "ssh", Config: map[string]string{
 				"host": "h", "user": "u", "key_path": "/k",
 			}},
-			wantType: "*transport.SSHTransport",
+			wantType: "SSHTransport",
 		},
 		{
 			name: "docker type returns Docker",
@@ -48,7 +48,7 @@ func TestFactory(t *testing.T) {
 			tc: &models.TransportConfig{Type: "docker", Config: map[string]string{
 				"container": "c",
 			}},
-			wantType: "*transport.DockerTransport",
+			wantType: "DockerTransport",
 		},
 		{
 			name: "stdio type returns STDIO",
@@ -56,7 +56,7 @@ func TestFactory(t *testing.T) {
 			tc: &models.TransportConfig{Type: "stdio", Config: map[string]string{
 				"command": echoBinary,
 			}},
-			wantType: "*transport.STDIOTransport",
+			wantType: "STDIOTransport",
 		},
 		{
 			name:      "unknown type returns error",
@@ -82,46 +82,19 @@ func TestFactory(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-
-			got := strings.TrimPrefix(strings.TrimPrefix(
-				strings.Split(strings.Replace(
-					strings.Replace(
-						typeString(tr), "transport.", "", 1),
-					"*", "", 1), "{")[0],
-				"transport."), "*")
-			_ = got
-			// Just check it's non-nil — type assertion is sufficient
 			if tr == nil {
 				t.Fatal("expected non-nil transport")
+			}
+
+			got := typeName(tr)
+			if got != tt.wantType {
+				t.Errorf("got type %s, want %s", got, tt.wantType)
 			}
 		})
 	}
 }
 
-func typeString(v any) string {
-	return strings.Replace(
-		strings.Replace(
-			strings.Split(
-				strings.TrimPrefix(
-					strings.TrimPrefix(
-						typeOf(v), "&"), "{"), "{")[0],
-			"transport.", "", 1),
-		"*", "", 1)
-}
-
-func typeOf(v any) string {
-	if v == nil {
-		return "<nil>"
-	}
-	return strings.Split(strings.Replace(
-		strings.Replace(
-			strings.TrimPrefix(
-				strings.TrimPrefix(
-					formatType(v), "&"), "{"), "transport.", "", 1),
-		"*", "", 1), "{")[0]
-}
-
-func formatType(v any) string {
+func typeName(v any) string {
 	switch v.(type) {
 	case *HTTPTransport:
 		return "HTTPTransport"
