@@ -1,0 +1,16 @@
+{
+  "agents": [
+    {
+      "name": "echo",
+      "url": "http://localhost:8001",
+      "description": "Echoes messages back",
+      "skills": [{"id": "echo", "name": "Echo"}]
+    },
+    {
+      "name": "greeter",
+      "url": "http://localhost:8002",
+      "description": "Greets the sender",
+      "skills": [{"id": "greet", "name": "Greeting"}]
+    }
+  ]
+}

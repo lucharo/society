@@ -1,0 +1,7 @@
+name: greeter
+description: Greets the sender
+port: 8002
+handler: greeter
+skills:
+  - id: greet
+    name: Greeting

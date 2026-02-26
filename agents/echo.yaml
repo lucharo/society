@@ -1,0 +1,7 @@
+name: echo
+description: Echoes messages back unchanged
+port: 8001
+handler: echo
+skills:
+  - id: echo
+    name: Echo
