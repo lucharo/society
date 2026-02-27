@@ -321,16 +321,26 @@ func scanA2A() []Candidate {
 }
 
 func probeA2APort(client *http.Client, port int) (Candidate, bool) {
-	url := fmt.Sprintf("http://localhost:%d/.well-known/agent-card.json", port)
-	resp, err := client.Get(url)
-	if err != nil {
+	// Try A2A spec path first, fall back to legacy path
+	paths := []string{"/.well-known/agent-card.json", "/.well-known/agent.json"}
+	var resp *http.Response
+	for _, path := range paths {
+		u := fmt.Sprintf("http://localhost:%d%s", port, path)
+		r, err := client.Get(u)
+		if err != nil {
+			continue
+		}
+		if r.StatusCode != 200 {
+			r.Body.Close()
+			continue
+		}
+		resp = r
+		break
+	}
+	if resp == nil {
 		return Candidate{}, false
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return Candidate{}, false
-	}
 
 	var card struct {
 		Name        string `json:"name"`
