@@ -56,6 +56,7 @@ func main() {
 	case "onboard":
 		onboardFlags := flag.NewFlagSet("onboard", flag.ExitOnError)
 		manualFlag := onboardFlags.Bool("manual", false, "Interactive manual setup")
+		onboardFlags.Bool("auto", false, "Auto-detect (default, kept for backwards compatibility)")
 		onboardFlags.Parse(os.Args[2:])
 
 		if *manualFlag {
