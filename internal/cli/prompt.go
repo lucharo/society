@@ -7,11 +7,20 @@ import (
 	"strings"
 )
 
+// ANSI escape codes
+const (
+	bold  = "\033[1m"
+	dim   = "\033[2m"
+	green = "\033[32m"
+	cyan  = "\033[36m"
+	reset = "\033[0m"
+)
+
 func prompt(r *bufio.Reader, w io.Writer, label, defaultVal string) string {
 	if defaultVal != "" {
-		fmt.Fprintf(w, "  %s (default: %s): ", label, defaultVal)
+		fmt.Fprintf(w, "%s%s%s %s(default: %s)%s: ", bold, label, reset, dim, defaultVal, reset)
 	} else {
-		fmt.Fprintf(w, "  %s: ", label)
+		fmt.Fprintf(w, "%s%s%s: ", bold, label, reset)
 	}
 	line, _ := r.ReadString('\n')
 	line = strings.TrimSpace(line)
@@ -24,9 +33,9 @@ func prompt(r *bufio.Reader, w io.Writer, label, defaultVal string) string {
 func promptChoice(r *bufio.Reader, w io.Writer, label string, options []string, defaultVal string) string {
 	optStr := strings.Join(options, "/")
 	if defaultVal != "" {
-		fmt.Fprintf(w, "  %s [%s] (default: %s): ", label, optStr, defaultVal)
+		fmt.Fprintf(w, "%s%s%s [%s] %s(default: %s)%s: ", bold, label, reset, optStr, dim, defaultVal, reset)
 	} else {
-		fmt.Fprintf(w, "  %s [%s]: ", label, optStr)
+		fmt.Fprintf(w, "%s%s%s [%s]: ", bold, label, reset, optStr)
 	}
 	line, _ := r.ReadString('\n')
 	line = strings.TrimSpace(line)
@@ -43,9 +52,9 @@ func promptChoice(r *bufio.Reader, w io.Writer, label string, options []string, 
 
 func promptYN(r *bufio.Reader, w io.Writer, label string, defaultYes bool) bool {
 	if defaultYes {
-		fmt.Fprintf(w, "  %s [Y/n]: ", label)
+		fmt.Fprintf(w, "%s%s%s [Y/n]: ", bold, label, reset)
 	} else {
-		fmt.Fprintf(w, "  %s [y/N]: ", label)
+		fmt.Fprintf(w, "%s%s%s [y/N]: ", bold, label, reset)
 	}
 	line, _ := r.ReadString('\n')
 	line = strings.TrimSpace(strings.ToLower(line))
@@ -53,4 +62,9 @@ func promptYN(r *bufio.Reader, w io.Writer, label string, defaultYes bool) bool 
 		return defaultYes
 	}
 	return line == "y" || line == "yes"
+}
+
+// dimPrint prints text in dim/grey for previously answered info
+func dimPrint(w io.Writer, format string, a ...any) {
+	fmt.Fprintf(w, "%s"+format+"%s", append([]any{dim}, append(a, reset)...)...)
 }

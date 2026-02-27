@@ -15,7 +15,7 @@ import (
 func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	r := bufio.NewReader(in)
 
-	fmt.Fprintln(out, "\nScanning for agents...")
+	fmt.Fprintf(out, "\n%sScanning for agents...%s\n", bold, reset)
 
 	candidates := ScanAll()
 
@@ -32,20 +32,20 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	a2aCandidates := filterBySource(candidates, "a2a")
 
 	if len(cliCandidates) > 0 {
-		fmt.Fprintf(out, "  found %d CLIs: %s\n", len(cliCandidates), candidateNames(cliCandidates))
+		fmt.Fprintf(out, "  %s✓%s %d CLIs: %s\n", green, reset, len(cliCandidates), candidateNames(cliCandidates))
 	}
 	if len(dockerCandidates) > 0 {
-		fmt.Fprintf(out, "  found %d Docker containers: %s\n", len(dockerCandidates), candidateNames(dockerCandidates))
+		fmt.Fprintf(out, "  %s✓%s %d Docker containers: %s\n", green, reset, len(dockerCandidates), candidateNames(dockerCandidates))
 	}
 	if len(sshCandidates) > 0 {
-		fmt.Fprintf(out, "  found %d SSH hosts: %s\n", len(sshCandidates), candidateNames(sshCandidates))
+		fmt.Fprintf(out, "  %s✓%s %d SSH hosts: %s\n", green, reset, len(sshCandidates), candidateNames(sshCandidates))
 	}
 	if len(a2aCandidates) > 0 {
-		fmt.Fprintf(out, "  found %d A2A agents: %s\n", len(a2aCandidates), candidateNames(a2aCandidates))
+		fmt.Fprintf(out, "  %s✓%s %d A2A agents: %s\n", green, reset, len(a2aCandidates), candidateNames(a2aCandidates))
 	}
 
 	if len(candidates) == 0 {
-		fmt.Fprintln(out, "\n  No agents detected. Use 'society onboard' for manual setup.")
+		fmt.Fprintf(out, "\nNo agents detected. Use '%ssociety onboard --manual%s' for manual setup.\n", bold, reset)
 		return nil
 	}
 
@@ -58,15 +58,19 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	}
 
 	if len(available) == 0 {
-		fmt.Fprintln(out, "\n  All detected agents are already registered.")
+		fmt.Fprintln(out, "\nAll detected agents are already registered.")
 		return nil
 	}
 
 	// Display numbered list
-	fmt.Fprintln(out, "\nAvailable agents:")
+	fmt.Fprintf(out, "\n%sAvailable agents:%s\n\n", bold, reset)
 	for i, c := range available {
 		sourceLabel := strings.ToUpper(c.Source)
-		fmt.Fprintf(out, "  %d. %s (%s) — %s\n", i+1, c.Name, sourceLabel, c.Description)
+		fmt.Fprintf(out, "  %s%d.%s %-20s %s%-8s%s %s%s%s\n",
+			cyan, i+1, reset,
+			c.Name,
+			dim, sourceLabel, reset,
+			dim, c.Description, reset)
 	}
 
 	fmt.Fprintln(out)
@@ -88,18 +92,19 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	}
 
 	if len(selected) == 0 {
-		fmt.Fprintln(out, "\n  No agents selected.")
+		fmt.Fprintln(out, "\nNo agents selected.")
 		return nil
 	}
 
 	// Register each selected candidate
+	fmt.Fprintln(out)
 	registered := 0
 	for _, c := range selected {
 		card, needsInput := candidateToCard(c)
 
 		// SSH candidates need the remote agent port
 		if needsInput && c.Source == "ssh" {
-			agentPort := prompt(r, out, fmt.Sprintf("  Agent port on %s (remote host)", c.Name), "8080")
+			agentPort := prompt(r, out, fmt.Sprintf("Agent port on %s (remote host)", c.Name), "8080")
 			card.Transport.Config["forward_port"] = agentPort
 			card.URL = fmt.Sprintf("http://localhost:%s", agentPort)
 		}
@@ -108,7 +113,7 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 			fmt.Fprintf(out, "  skipping %s: %v\n", c.Name, err)
 			continue
 		}
-		fmt.Fprintf(out, "  registered %s\n", c.Name)
+		fmt.Fprintf(out, "  %s✓%s %s\n", green, reset, c.Name)
 		registered++
 	}
 
@@ -120,7 +125,7 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 		return fmt.Errorf("saving registry: %w", err)
 	}
 
-	fmt.Fprintf(out, "\n  %d agent(s) added to registry.\n", registered)
+	fmt.Fprintf(out, "\n%s%d agent(s) added to registry.%s\n", green, registered, reset)
 	return nil
 }
 
