@@ -2,3 +2,4 @@ society
 *.exe
 *.test
 *.out
+.wrangler/

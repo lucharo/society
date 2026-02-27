@@ -8,6 +8,14 @@ Connect AI agents across machines, containers, and networks. One CLI to run, man
 
 ## Install
 
+**Quick install** (macOS / Linux):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lucharo/society/main/scripts/install.sh | sh
+```
+
+**From source** (requires Go 1.24+):
+
 ```bash
 git clone https://github.com/lucharo/society.git
 cd society
@@ -17,7 +25,7 @@ go build -o society ./cmd/society
 mv society ~/.local/bin/  # ensure ~/.local/bin is in your PATH
 ```
 
-Cross-compile for a remote server:
+**Cross-compile** for a remote server:
 
 ```bash
 GOOS=linux GOARCH=amd64 go build -o society-linux ./cmd/society
@@ -68,22 +76,25 @@ society onboard
 society send server-claude "hello from my laptop"
 ```
 
-### 5. Expose as MCP tools
+### 5. Use as MCP tools
 
-Add to `.mcp.json` in your project:
+Expose your agents to Claude Desktop, Cursor, or Claude Code:
 
-```json
+```bash
+# Add to your project's .mcp.json:
+cat > .mcp.json << 'EOF'
 {
   "mcpServers": {
     "society": {
-      "command": "./society",
+      "command": "society",
       "args": ["mcp"]
     }
   }
 }
+EOF
 ```
 
-Every registered agent becomes a tool: `send_echo`, `send_claude`, `send_server_claude`, etc.
+Every registered agent becomes a tool: `send_echo`, `send_claude`, `send_server_claude`, etc. The MCP server reloads the registry on each `tools/list` call, so you can add agents without restarting.
 
 ## Transports
 
@@ -130,7 +141,7 @@ society export                     Export registry
 
 ## Docs
 
-Full documentation: `cd docs && bun install && bun run dev` → [localhost:4321](http://localhost:4321)
+Full documentation: [society.luischav.es](https://society.luischav.es)
 
 ## License
 
