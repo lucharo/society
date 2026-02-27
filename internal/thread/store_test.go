@@ -87,6 +87,26 @@ func TestStore_List(t *testing.T) {
 	}
 }
 
+func TestStore_PathTraversal(t *testing.T) {
+	s := NewStore(t.TempDir())
+
+	badIDs := []string{"../etc/passwd", "../../tmp/evil", "foo/bar", ".", ".."}
+	for _, id := range badIDs {
+		t.Run("load_"+id, func(t *testing.T) {
+			_, err := s.Load(id)
+			if err == nil {
+				t.Errorf("Load(%q) should return error", id)
+			}
+		})
+		t.Run("save_"+id, func(t *testing.T) {
+			err := s.Save(&Thread{ID: id, Agent: "test"})
+			if err == nil {
+				t.Errorf("Save(%q) should return error", id)
+			}
+		})
+	}
+}
+
 func TestStore_ListEmpty(t *testing.T) {
 	s := NewStore(filepath.Join(t.TempDir(), "nonexistent"))
 

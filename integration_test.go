@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -31,7 +30,7 @@ func TestHTTP_Echo(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{Name: "echo", URL: ts.URL}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
@@ -57,7 +56,7 @@ func TestHTTP_Greeter(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{Name: "greeter", URL: ts.URL}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
@@ -84,7 +83,7 @@ func TestHTTP_ThreadID(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{Name: "echo", URL: ts.URL}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
@@ -102,12 +101,12 @@ func TestHTTP_ThreadID(t *testing.T) {
 func TestSTDIO_Echo(t *testing.T) {
 	binPath := filepath.Join(t.TempDir(), "society")
 	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/society")
-	buildCmd.Dir = projectRoot(t)
+	buildCmd.Dir = mustProjectRoot(t)
 	if out, err := buildCmd.CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %s\n%s", err, out)
 	}
 
-	echoConfig := filepath.Join(projectRoot(t), "agents", "echo.yaml")
+	echoConfig := filepath.Join(mustProjectRoot(t), "agents", "echo.yaml")
 	regPath := filepath.Join(t.TempDir(), "reg.json")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{
 		Name: "stdio-echo",
@@ -121,7 +120,7 @@ func TestSTDIO_Echo(t *testing.T) {
 		},
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
@@ -142,13 +141,13 @@ func TestSTDIO_Echo(t *testing.T) {
 
 func TestSendLocal_SpawnOnDemand(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
-	echoConfig := filepath.Join(projectRoot(t), "agents", "echo.yaml")
+	echoConfig := filepath.Join(mustProjectRoot(t), "agents", "echo.yaml")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{
 		Name:       "local-echo",
 		ConfigPath: echoConfig,
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	out := &bytes.Buffer{}
 	if err := cli.Send(regPath, "local-echo", "spawn test", out); err != nil {
@@ -198,7 +197,7 @@ func TestFullFlow_Export_Import(t *testing.T) {
 		{Name: "b", URL: "http://b"},
 	}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	exportPath := filepath.Join(t.TempDir(), "export.json")
 	out := &bytes.Buffer{}
@@ -246,22 +245,3 @@ func TestFullFlow_Discover(t *testing.T) {
 	}
 }
 
-// --- Helpers ---
-
-func projectRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("could not find project root")
-		}
-		dir = parent
-	}
-}

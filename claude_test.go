@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,13 +15,13 @@ import (
 
 func TestClaude_ExecPong(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
-	claudeConfig := filepath.Join(projectRootClaude(t), "agents", "claude.yaml")
+	claudeConfig := filepath.Join(mustProjectRoot(t), "agents", "claude.yaml")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{
 		Name:       "claude",
 		ConfigPath: claudeConfig,
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	out := &bytes.Buffer{}
 	err := cli.Send(regPath, "claude", "respond with exactly: PONG", out)
@@ -37,13 +36,13 @@ func TestClaude_ExecPong(t *testing.T) {
 
 func TestClaude_ThreadContinuation(t *testing.T) {
 	regPath := filepath.Join(t.TempDir(), "reg.json")
-	claudeConfig := filepath.Join(projectRootClaude(t), "agents", "claude.yaml")
+	claudeConfig := filepath.Join(mustProjectRoot(t), "agents", "claude.yaml")
 	rf := models.RegistryFile{Agents: []models.AgentCard{{
 		Name:       "claude",
 		ConfigPath: claudeConfig,
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	threadID := "test-thread-123"
 
@@ -63,23 +62,5 @@ func TestClaude_ThreadContinuation(t *testing.T) {
 
 	if !strings.Contains(strings.ToUpper(out2.String()), "BANANA") {
 		t.Errorf("expected BANANA in follow-up, got: %s", out2.String())
-	}
-}
-
-func projectRootClaude(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("could not find project root")
-		}
-		dir = parent
 	}
 }

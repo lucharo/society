@@ -2,6 +2,7 @@ package thread
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +40,9 @@ func DefaultStore() *Store {
 }
 
 func (s *Store) Load(id string) (*Thread, error) {
+	if err := validateID(id); err != nil {
+		return nil, err
+	}
 	path := s.path(id)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -55,7 +59,10 @@ func (s *Store) Load(id string) (*Thread, error) {
 }
 
 func (s *Store) Save(t *Thread) error {
-	if err := os.MkdirAll(s.dir, 0755); err != nil {
+	if err := validateID(t.ID); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.dir, 0700); err != nil {
 		return err
 	}
 	t.UpdatedAt = time.Now()
@@ -63,7 +70,7 @@ func (s *Store) Save(t *Thread) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.path(t.ID), data, 0644)
+	return os.WriteFile(s.path(t.ID), data, 0600)
 }
 
 func (s *Store) List(agent string) ([]*Thread, error) {
@@ -89,6 +96,15 @@ func (s *Store) List(agent string) ([]*Thread, error) {
 		}
 	}
 	return threads, nil
+}
+
+func validateID(id string) error {
+	if id == "" || id == "." || id == ".." ||
+		strings.ContainsAny(id, "/\\") ||
+		filepath.Base(id) != id {
+		return fmt.Errorf("invalid thread ID: %q", id)
+	}
+	return nil
 }
 
 func (s *Store) path(id string) string {

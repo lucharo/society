@@ -41,7 +41,7 @@ func TestTailscale_SSH_Echo(t *testing.T) {
 		},
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
@@ -81,7 +81,7 @@ func TestTailscale_SSH_Greeter(t *testing.T) {
 		},
 	}}}
 	data, _ := json.MarshalIndent(rf, "", "  ")
-	os.WriteFile(regPath, data, 0644)
+	mustWriteFile(t, regPath, data)
 
 	reg, _ := registry.Load(regPath)
 	c := client.New(reg)
