@@ -34,7 +34,7 @@ func newTestExecHandler(t *testing.T, runner *mockRunner) (*ExecHandler, *thread
 		Args:        []string{"-p", "--output-format", "json"},
 		SessionFlag: "--session-id",
 	}
-	h := NewExecHandlerWithRunner("claude", backend, store, runner)
+	h := NewExecHandlerWithRunner("claude", backend, "", store, runner)
 	return h, store
 }
 
@@ -199,5 +199,111 @@ func TestExecHandler_MultipleTextParts(t *testing.T) {
 	lastArg := runner.lastArgs[len(runner.lastArgs)-3] // before --session-id <id>
 	if lastArg != "line one\nline two" {
 		t.Errorf("got combined text %q", lastArg)
+	}
+}
+
+func TestExecHandler_SystemPrompt(t *testing.T) {
+	resp, _ := json.Marshal(map[string]string{"result": "ok"})
+	runner := &mockRunner{stdout: string(resp)}
+	store := thread.NewStore(t.TempDir())
+	backend := &models.BackendConfig{
+		Command:          "claude",
+		Args:             []string{"-p", "--output-format", "json"},
+		SessionFlag:      "--session-id",
+		SystemPromptFlag: "--system-prompt",
+	}
+	h := NewExecHandlerWithRunner("claude", backend, "You are an infrastructure agent on arch linux.", store, runner)
+
+	_, err := h.Handle(context.Background(), makeParams("sp-1", "hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify --system-prompt was passed with the correct value
+	found := false
+	for i, arg := range runner.lastArgs {
+		if arg == "--system-prompt" && i+1 < len(runner.lastArgs) && runner.lastArgs[i+1] == "You are an infrastructure agent on arch linux." {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("--system-prompt not found in args: %v", runner.lastArgs)
+	}
+}
+
+func TestExecHandler_SystemPromptCustomFlag(t *testing.T) {
+	resp, _ := json.Marshal(map[string]string{"result": "ok"})
+	runner := &mockRunner{stdout: string(resp)}
+	store := thread.NewStore(t.TempDir())
+	backend := &models.BackendConfig{
+		Command:          "codex",
+		Args:             []string{"--quiet"},
+		SystemPromptFlag: "--system-message",
+	}
+	h := NewExecHandlerWithRunner("codex", backend, "You are a code reviewer.", store, runner)
+
+	_, err := h.Handle(context.Background(), makeParams("sp-3", "review this"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for i, arg := range runner.lastArgs {
+		if arg == "--system-message" && i+1 < len(runner.lastArgs) && runner.lastArgs[i+1] == "You are a code reviewer." {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("--system-message not found in args: %v", runner.lastArgs)
+	}
+}
+
+func TestExecHandler_NoSystemPrompt(t *testing.T) {
+	resp, _ := json.Marshal(map[string]string{"result": "ok"})
+	runner := &mockRunner{stdout: string(resp)}
+	store := thread.NewStore(t.TempDir())
+	backend := &models.BackendConfig{
+		Command:          "claude",
+		Args:             []string{"-p"},
+		SystemPromptFlag: "--system-prompt",
+	}
+	h := NewExecHandlerWithRunner("claude", backend, "", store, runner)
+
+	_, err := h.Handle(context.Background(), makeParams("sp-2", "hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify --system-prompt is NOT in args when system_prompt is empty
+	for _, arg := range runner.lastArgs {
+		if arg == "--system-prompt" {
+			t.Errorf("--system-prompt should not be in args when empty: %v", runner.lastArgs)
+		}
+	}
+}
+
+func TestExecHandler_NoSystemPromptFlag(t *testing.T) {
+	resp, _ := json.Marshal(map[string]string{"result": "ok"})
+	runner := &mockRunner{stdout: string(resp)}
+	store := thread.NewStore(t.TempDir())
+	backend := &models.BackendConfig{
+		Command: "somebot",
+		Args:    []string{"-p"},
+	}
+	// system_prompt set but no system_prompt_flag — should be silently skipped
+	h := NewExecHandlerWithRunner("somebot", backend, "You are helpful.", store, runner)
+
+	_, err := h.Handle(context.Background(), makeParams("sp-4", "hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify no system prompt flag leaked into args
+	for _, arg := range runner.lastArgs {
+		if arg == "You are helpful." {
+			t.Errorf("system prompt should not appear in args without a flag: %v", runner.lastArgs)
+		}
 	}
 }

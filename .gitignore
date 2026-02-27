@@ -3,3 +3,4 @@ society
 *.test
 *.out
 .wrangler/
+registry.json

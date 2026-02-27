@@ -22,7 +22,7 @@ func NewHandler(cfg *models.AgentConfig) (Handler, error) {
 		if cfg.Backend == nil {
 			return nil, fmt.Errorf("exec handler requires backend config")
 		}
-		return NewExecHandler(cfg.Name, cfg.Backend, thread.DefaultStore()), nil
+		return NewExecHandler(cfg.Name, cfg.Backend, cfg.SystemPrompt, thread.DefaultStore()), nil
 	default:
 		return nil, fmt.Errorf("unknown handler: %s", cfg.Handler)
 	}

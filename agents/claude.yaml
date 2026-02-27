@@ -2,6 +2,9 @@ name: claude
 description: Claude Code agent
 port: 8003
 handler: exec
+system_prompt: |
+  You are a society agent running on this machine.
+  Keep responses concise.
 backend:
   command: claude
   args: ["-p", "--output-format", "json"]

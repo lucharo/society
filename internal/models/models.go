@@ -90,20 +90,38 @@ type SendTaskParams struct {
 }
 
 type BackendConfig struct {
-	Command     string   `yaml:"command"`
-	Args        []string `yaml:"args,omitempty"`
-	SessionFlag string   `yaml:"session_flag,omitempty"`
-	ResumeFlag  string   `yaml:"resume_flag,omitempty"`
-	Env         []string `yaml:"env,omitempty"`
+	Command          string   `yaml:"command"`
+	Args             []string `yaml:"args,omitempty"`
+	SessionFlag      string   `yaml:"session_flag,omitempty"`
+	ResumeFlag       string   `yaml:"resume_flag,omitempty"`
+	SystemPromptFlag string   `yaml:"system_prompt_flag,omitempty"`
+	Env              []string `yaml:"env,omitempty"`
+}
+
+// backendDefaults maps known backend commands to their default system prompt flags.
+var backendDefaults = map[string]string{
+	"claude": "--system-prompt",
+	"happy":  "--system-prompt", // happy wraps claude
+	"goose":  "--system",
+}
+
+// ApplyDefaults fills in unset fields with known defaults for the backend command.
+func (b *BackendConfig) ApplyDefaults() {
+	if b.SystemPromptFlag == "" {
+		if flag, ok := backendDefaults[b.Command]; ok {
+			b.SystemPromptFlag = flag
+		}
+	}
 }
 
 type AgentConfig struct {
-	Name        string         `yaml:"name"`
-	Description string         `yaml:"description,omitempty"`
-	Port        int            `yaml:"port,omitempty"`
-	Handler     string         `yaml:"handler"`
-	Backend     *BackendConfig `yaml:"backend,omitempty"`
-	Skills      []Skill        `yaml:"skills,omitempty"`
+	Name         string         `yaml:"name"`
+	Description  string         `yaml:"description,omitempty"`
+	Port         int            `yaml:"port,omitempty"`
+	Handler      string         `yaml:"handler"`
+	Backend      *BackendConfig `yaml:"backend,omitempty"`
+	Skills       []Skill        `yaml:"skills,omitempty"`
+	SystemPrompt string         `yaml:"system_prompt,omitempty"`
 }
 
 type RegistryFile struct {

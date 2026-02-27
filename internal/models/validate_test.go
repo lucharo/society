@@ -406,3 +406,46 @@ func TestValidateAgentConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestBackendConfig_ApplyDefaults(t *testing.T) {
+	tests := []struct {
+		name     string
+		backend  BackendConfig
+		wantFlag string
+	}{
+		{
+			name:     "claude gets default",
+			backend:  BackendConfig{Command: "claude"},
+			wantFlag: "--system-prompt",
+		},
+		{
+			name:     "happy gets default",
+			backend:  BackendConfig{Command: "happy"},
+			wantFlag: "--system-prompt",
+		},
+		{
+			name:     "goose gets default",
+			backend:  BackendConfig{Command: "goose"},
+			wantFlag: "--system",
+		},
+		{
+			name:     "explicit override preserved",
+			backend:  BackendConfig{Command: "claude", SystemPromptFlag: "--custom-flag"},
+			wantFlag: "--custom-flag",
+		},
+		{
+			name:     "unknown command stays empty",
+			backend:  BackendConfig{Command: "somebot"},
+			wantFlag: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.backend.ApplyDefaults()
+			if tt.backend.SystemPromptFlag != tt.wantFlag {
+				t.Errorf("got SystemPromptFlag %q, want %q", tt.backend.SystemPromptFlag, tt.wantFlag)
+			}
+		})
+	}
+}

@@ -20,5 +20,8 @@ func LoadConfig(path string) (*models.AgentConfig, error) {
 	if err := models.ValidateAgentConfig(cfg); err != nil {
 		return nil, err
 	}
+	if cfg.Backend != nil {
+		cfg.Backend.ApplyDefaults()
+	}
 	return &cfg, nil
 }

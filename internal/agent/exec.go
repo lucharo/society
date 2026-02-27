@@ -37,28 +37,31 @@ func (r *defaultRunner) Run(ctx context.Context, cmd string, args []string, env 
 }
 
 type ExecHandler struct {
-	backend *models.BackendConfig
-	threads *thread.Store
-	agent   string
-	runner  CommandRunner
+	backend      *models.BackendConfig
+	threads      *thread.Store
+	agent        string
+	systemPrompt string
+	runner       CommandRunner
 }
 
-func NewExecHandler(agent string, backend *models.BackendConfig, store *thread.Store) *ExecHandler {
+func NewExecHandler(agent string, backend *models.BackendConfig, systemPrompt string, store *thread.Store) *ExecHandler {
 	return &ExecHandler{
-		backend: backend,
-		threads: store,
-		agent:   agent,
-		runner:  &defaultRunner{},
+		backend:      backend,
+		threads:      store,
+		agent:        agent,
+		systemPrompt: systemPrompt,
+		runner:       &defaultRunner{},
 	}
 }
 
 // NewExecHandlerWithRunner creates an ExecHandler with a custom CommandRunner (for testing).
-func NewExecHandlerWithRunner(agent string, backend *models.BackendConfig, store *thread.Store, runner CommandRunner) *ExecHandler {
+func NewExecHandlerWithRunner(agent string, backend *models.BackendConfig, systemPrompt string, store *thread.Store, runner CommandRunner) *ExecHandler {
 	return &ExecHandler{
-		backend: backend,
-		threads: store,
-		agent:   agent,
-		runner:  runner,
+		backend:      backend,
+		threads:      store,
+		agent:        agent,
+		systemPrompt: systemPrompt,
+		runner:       runner,
 	}
 }
 
@@ -100,6 +103,9 @@ func (h *ExecHandler) Handle(ctx context.Context, params *models.SendTaskParams)
 	}
 	args := make([]string, len(h.backend.Args))
 	copy(args, h.backend.Args)
+	if h.systemPrompt != "" && h.backend.SystemPromptFlag != "" {
+		args = append(args, h.backend.SystemPromptFlag, h.systemPrompt)
+	}
 	args = append(args, userText)
 	if isFollowUp && h.backend.ResumeFlag != "" && th.SessionID != "" {
 		// Follow-up: resume existing session
