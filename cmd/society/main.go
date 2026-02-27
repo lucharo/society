@@ -107,6 +107,35 @@ func main() {
 		}
 		err = cli.Discover(registryPath, os.Args[2], os.Stdin, os.Stdout)
 
+	case "mcp":
+		err = cli.MCP(registryPath, os.Stdin, os.Stdout)
+
+	case "daemon":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society daemon <start|stop|status|run> [agents...] [--agents <dir>]")
+			os.Exit(1)
+		}
+
+		subcmd := os.Args[2]
+		fs := flag.NewFlagSet("daemon", flag.ExitOnError)
+		agentsDir := fs.String("agents", "agents", "Directory containing agent configs")
+		fs.Parse(os.Args[3:])
+		names := fs.Args()
+
+		switch subcmd {
+		case "start":
+			err = cli.DaemonStart(*agentsDir, names, os.Stdout)
+		case "stop":
+			err = cli.DaemonStop(os.Stdout)
+		case "status":
+			err = cli.DaemonStatus(os.Stdout)
+		case "run":
+			err = cli.DaemonRun(*agentsDir, names, os.Stdout)
+		default:
+			fmt.Fprintf(os.Stderr, "unknown daemon subcommand: %s\n", subcmd)
+			os.Exit(1)
+		}
+
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		printUsage()
@@ -135,6 +164,11 @@ Commands:
   export [--output <path>]   Export registry
   import <path-or-url>       Import agents
   discover <url>             Discover agent from A2A endpoint
+  mcp                        Start MCP server (stdio)
+  daemon start [agents...]   Start all agents in background [--agents <dir>]
+  daemon stop                Stop the running daemon
+  daemon status              Show daemon status and agents
+  daemon run [agents...]     Start all agents in foreground [--agents <dir>]
 
 Flags:
   --registry <path>          Registry file (default: registry.json, or SOCIETY_REGISTRY env)`)
