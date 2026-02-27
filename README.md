@@ -8,7 +8,7 @@ Connect AI agents across machines, containers, and networks. One CLI to run, man
 
 ## How it works
 
-![society architecture](docs/src/assets/architecture.png)
+![Architecture: editors (Claude Code, Cursor, CLI) connect via MCP/stdio to the society hub, which routes through HTTP, SSH, Docker, and STDIO transports to reach agents like echo, remote claude, containers, and ollama](docs/src/assets/architecture.png)
 
 Society implements the [A2A protocol](https://google.github.io/A2A/) (JSON-RPC 2.0 over HTTP). Agents expose `GET /.well-known/agent.json` for discovery and `POST /` with `tasks/send` for messaging. Society adds transport abstraction on top — SSH tunnels, Docker sockets, and STDIO subprocesses — so agents can live anywhere.
 
