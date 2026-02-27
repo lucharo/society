@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/luischavesdev/society/internal/cli"
@@ -28,7 +29,11 @@ func main() {
 
 	registryPath := os.Getenv("SOCIETY_REGISTRY")
 	if registryPath == "" {
-		registryPath = "registry.json"
+		if home, err := os.UserHomeDir(); err == nil {
+			registryPath = filepath.Join(home, ".society", "registry.json")
+		} else {
+			registryPath = "registry.json"
+		}
 	}
 
 	// Check for global --registry flag before subcommand
@@ -218,5 +223,5 @@ Commands:
   version                    Print the current version
 
 Flags:
-  --registry <path>          Registry file (default: registry.json, or SOCIETY_REGISTRY env)`)
+  --registry <path>          Registry file (default: ~/.society/registry.json, or SOCIETY_REGISTRY env)`)
 }

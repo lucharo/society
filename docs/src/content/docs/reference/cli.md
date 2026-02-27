@@ -7,7 +7,7 @@ description: Complete reference for all society commands
 
 ```
 --registry <path>    Registry file path
-                     Default: registry.json
+                     Default: ~/.society/registry.json
                      Env: SOCIETY_REGISTRY
 ```
 

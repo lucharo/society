@@ -7,7 +7,7 @@ The registry is a JSON file that maps agent names to their connection details. E
 
 ## File location
 
-Default: `registry.json` in the current directory.
+Default: `~/.society/registry.json`.
 
 Override with:
 - `--registry <path>` flag (before the subcommand)
