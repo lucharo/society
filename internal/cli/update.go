@@ -106,7 +106,7 @@ func Update(currentVersion string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(f, dlResp.Body); err != nil {
+	if _, err := io.Copy(f, io.LimitReader(dlResp.Body, maxBinarySize)); err != nil {
 		f.Close()
 		return fmt.Errorf("saving download: %w", err)
 	}
@@ -192,7 +192,7 @@ func verifyChecksum(filePath, fileName, checksumsURL string) error {
 		return fmt.Errorf("checksums download returned %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1*1024*1024))
 	if err != nil {
 		return fmt.Errorf("reading checksums: %w", err)
 	}
@@ -208,6 +208,9 @@ func verifyChecksum(filePath, fileName, checksumsURL string) error {
 	}
 	if expectedHash == "" {
 		return fmt.Errorf("checksum for %s not found in SHA256SUMS", fileName)
+	}
+	if len(expectedHash) != 64 {
+		return fmt.Errorf("invalid checksum length for %s: expected 64 hex chars, got %d", fileName, len(expectedHash))
 	}
 
 	// Hash the downloaded file
