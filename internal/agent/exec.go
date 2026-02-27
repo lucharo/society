@@ -89,10 +89,15 @@ func (h *ExecHandler) Handle(ctx context.Context, params *models.SendTaskParams)
 	}
 
 	// Build command args
+	isFollowUp := len(th.Messages) > 0
 	args := make([]string, len(h.backend.Args))
 	copy(args, h.backend.Args)
 	args = append(args, userText)
-	if h.backend.SessionFlag != "" && th.SessionID != "" {
+	if isFollowUp && h.backend.ResumeFlag != "" && th.SessionID != "" {
+		// Follow-up: resume existing session
+		args = append(args, h.backend.ResumeFlag, th.SessionID)
+	} else if h.backend.SessionFlag != "" && th.SessionID != "" {
+		// First message: create session with specific ID
 		args = append(args, h.backend.SessionFlag, th.SessionID)
 	}
 

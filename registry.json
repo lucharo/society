@@ -14,9 +14,8 @@
     },
     {
       "name": "claude",
+      "url": "http://localhost:8003",
       "description": "Claude Code agent",
-      "backend": "claude",
-      "config_path": "agents/claude.yaml",
       "skills": [{"id": "code", "name": "Code Assistant"}, {"id": "general", "name": "General"}]
     },
     {

@@ -137,28 +137,39 @@ func TestSTDIO_Echo(t *testing.T) {
 	}
 }
 
-// --- Spawn-on-demand (local exec) ---
+// --- Exec handler over HTTP ---
 
-func TestSendLocal_SpawnOnDemand(t *testing.T) {
-	regPath := filepath.Join(t.TempDir(), "reg.json")
-	echoConfig := filepath.Join(mustProjectRoot(t), "agents", "echo.yaml")
-	rf := models.RegistryFile{Agents: []models.AgentCard{{
-		Name:       "local-echo",
-		ConfigPath: echoConfig,
-	}}}
-	data, _ := json.MarshalIndent(rf, "", "  ")
-	mustWriteFile(t, regPath, data)
-
-	out := &bytes.Buffer{}
-	if err := cli.Send(regPath, "local-echo", "spawn test", out); err != nil {
+func TestHTTP_ExecEcho(t *testing.T) {
+	// Use exec handler with /bin/echo as a simple backend (no Claude needed)
+	backend := &models.BackendConfig{Command: "echo", Args: []string{"-n"}}
+	cfg := &models.AgentConfig{Name: "exec-echo", Handler: "exec", Backend: backend}
+	h, err := agent.NewHandler(cfg)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(out.String(), "spawn test") {
-		t.Errorf("output: %s", out.String())
+	card := models.AgentCard{Name: "exec-echo", URL: "http://placeholder"}
+	srv := agent.NewServer(card, h)
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	regPath := filepath.Join(t.TempDir(), "reg.json")
+	rf := models.RegistryFile{Agents: []models.AgentCard{{Name: "exec-echo", URL: ts.URL}}}
+	data, _ := json.MarshalIndent(rf, "", "  ")
+	mustWriteFile(t, regPath, data)
+
+	reg, _ := registry.Load(regPath)
+	c := client.New(reg)
+	task, err := c.Send(context.Background(), "exec-echo", "hello from exec")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "Thread") {
-		t.Errorf("should print thread ID, output: %s", out.String())
+
+	if task.Status.State != models.TaskStateCompleted {
+		t.Errorf("got state %s, message: %s", task.Status.State, task.Status.Message)
+	}
+	if len(task.Artifacts) == 0 || task.Artifacts[0].Parts[0].Text != "hello from exec" {
+		t.Errorf("unexpected response: %+v", task.Artifacts)
 	}
 }
 

@@ -39,12 +39,10 @@ func ValidateRegistry(agents []AgentCard) error {
 			seen[a.Name] = true
 		}
 
-		if a.URL == "" && a.ConfigPath == "" {
-			errs.Add(fmt.Sprintf("%s: url or config_path is required", prefix))
-		} else if a.URL != "" {
-			if _, err := url.Parse(a.URL); err != nil {
-				errs.Add(fmt.Sprintf("%s: invalid url: %v", prefix, err))
-			}
+		if a.URL == "" {
+			errs.Add(fmt.Sprintf("%s: url is required", prefix))
+		} else if _, err := url.Parse(a.URL); err != nil {
+			errs.Add(fmt.Sprintf("%s: invalid url: %v", prefix, err))
 		}
 
 		if a.Transport != nil {
@@ -68,12 +66,10 @@ func ValidateAgentCard(card AgentCard) error {
 	if card.Name == "" {
 		errs.Add("name is required")
 	}
-	if card.URL == "" && card.ConfigPath == "" {
-		errs.Add("url or config_path is required")
-	} else if card.URL != "" {
-		if _, err := url.Parse(card.URL); err != nil {
-			errs.Add(fmt.Sprintf("invalid url: %v", err))
-		}
+	if card.URL == "" {
+		errs.Add("url is required")
+	} else if _, err := url.Parse(card.URL); err != nil {
+		errs.Add(fmt.Sprintf("invalid url: %v", err))
 	}
 	if card.Transport != nil {
 		if err := ValidateTransportConfig(card.Transport); err != nil {

@@ -12,9 +12,7 @@ type AgentCard struct {
 	Version      string           `json:"version,omitempty"`
 	Skills       []Skill          `json:"skills,omitempty"`
 	Capabilities Capabilities     `json:"capabilities,omitempty"`
-	Transport    *TransportConfig `json:"transport,omitempty"`
-	ConfigPath   string           `json:"config_path,omitempty"`
-	Backend      string           `json:"backend,omitempty"`
+	Transport *TransportConfig `json:"transport,omitempty"`
 }
 
 type Skill struct {
@@ -95,6 +93,7 @@ type BackendConfig struct {
 	Command     string   `yaml:"command"`
 	Args        []string `yaml:"args,omitempty"`
 	SessionFlag string   `yaml:"session_flag,omitempty"`
+	ResumeFlag  string   `yaml:"resume_flag,omitempty"`
 	Env         []string `yaml:"env,omitempty"`
 }
 

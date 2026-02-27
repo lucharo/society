@@ -26,14 +26,10 @@ func TestValidateRegistry(t *testing.T) {
 			errMsg:  "name is required",
 		},
 		{
-			name:    "missing url and config_path",
+			name:    "missing url",
 			agents:  []AgentCard{{Name: "a"}},
 			wantErr: true,
-			errMsg:  "url or config_path is required",
-		},
-		{
-			name:   "config_path instead of url",
-			agents: []AgentCard{{Name: "a", ConfigPath: "agents/claude.yaml"}},
+			errMsg:  "url is required",
 		},
 		{
 			name: "duplicate names",
@@ -129,14 +125,10 @@ func TestValidateAgentCard(t *testing.T) {
 			errMsg:  "name is required",
 		},
 		{
-			name:    "missing url and config_path",
+			name:    "missing url",
 			card:    AgentCard{Name: "a"},
 			wantErr: true,
-			errMsg:  "url or config_path is required",
-		},
-		{
-			name: "config_path instead of url",
-			card: AgentCard{Name: "a", ConfigPath: "agents/claude.yaml"},
+			errMsg:  "url is required",
 		},
 		{
 			name: "valid with transport",
