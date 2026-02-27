@@ -29,7 +29,7 @@ type Server struct {
 
 // NewServer creates a new MCP server.
 func NewServer(registryPath string, reg *registry.Registry, sender Sender, in io.Reader, out io.Writer) *Server {
-	return &Server{
+	s := &Server{
 		registryPath: registryPath,
 		registry:     reg,
 		sender:       sender,
@@ -37,6 +37,8 @@ func NewServer(registryPath string, reg *registry.Registry, sender Sender, in io
 		out:          out,
 		toolMap:      make(map[string]string),
 	}
+	s.rebuildToolMap(reg)
+	return s
 }
 
 // Run reads JSON-RPC 2.0 requests from stdin and writes responses to stdout.
@@ -99,6 +101,18 @@ func (s *Server) handleInitialize(id json.RawMessage) {
 	s.writeResult(id, result)
 }
 
+func (s *Server) rebuildToolMap(reg *registry.Registry) {
+	s.toolMap = make(map[string]string)
+	for _, a := range reg.List() {
+		toolName := agentToToolName(a.Name)
+		s.toolMap[toolName] = a.Name
+	}
+}
+
+func agentToToolName(name string) string {
+	return "send_" + strings.ReplaceAll(name, "-", "_")
+}
+
 func (s *Server) handleToolsList(id json.RawMessage) {
 	reg, err := registry.Load(s.registryPath)
 	if err != nil {
@@ -106,13 +120,16 @@ func (s *Server) handleToolsList(id json.RawMessage) {
 		return
 	}
 	s.registry = reg
-
-	s.toolMap = make(map[string]string)
+	s.rebuildToolMap(reg)
 
 	var tools []map[string]any
+	seen := make(map[string]bool)
 	for _, agent := range reg.List() {
-		toolName := "send_" + strings.ReplaceAll(agent.Name, "-", "_")
-		s.toolMap[toolName] = agent.Name
+		toolName := agentToToolName(agent.Name)
+		if seen[toolName] {
+			continue // skip collision — first agent wins
+		}
+		seen[toolName] = true
 
 		desc := fmt.Sprintf("Send message to %s agent", agent.Name)
 		if agent.Description != "" {

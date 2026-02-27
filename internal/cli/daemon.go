@@ -56,16 +56,26 @@ func DaemonStart(agentsDir string, names []string, out io.Writer) error {
 	args := []string{exe, "daemon", "run", "--agents", agentsDir}
 	args = append(args, names...)
 
-	logPath := filepath.Join(societyDir(), "daemon.log")
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	dir, err := societyDir()
+	if err != nil {
+		return err
+	}
+	logPath := filepath.Join(dir, "daemon.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("opening log file: %w", err)
 	}
 	defer logFile.Close()
 
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		return fmt.Errorf("opening /dev/null: %w", err)
+	}
+	defer devNull.Close()
+
 	attr := &os.ProcAttr{
 		Env:   append(os.Environ(), "SOCIETY_DAEMON_CHILD=1"),
-		Files: []*os.File{os.Stdin, logFile, logFile},
+		Files: []*os.File{devNull, logFile, logFile},
 	}
 
 	proc, err := os.StartProcess(exe, args, attr)
@@ -221,43 +231,53 @@ func DaemonStop(out io.Writer) error {
 func DaemonStatus(out io.Writer) error {
 	state, err := readDaemonState()
 	if err != nil {
-		fmt.Fprintln(out, "  Daemon: not running")
+		fmt.Fprintln(out, "Daemon: not running")
 		return nil
 	}
 
 	if !isProcessAlive(state.PID) {
 		removePIDFile()
-		fmt.Fprintln(out, "  Daemon: not running (stale PID file)")
+		fmt.Fprintln(out, "Daemon: not running (stale PID file)")
 		return nil
 	}
 
 	uptime := time.Since(state.StartedAt).Truncate(time.Second)
-	fmt.Fprintf(out, "  Daemon: running (uptime: %s) [PID %d]\n", formatDuration(uptime), state.PID)
+	fmt.Fprintf(out, "Daemon: running (uptime: %s) [PID %d]\n", formatDuration(uptime), state.PID)
 	for i, name := range state.Agents {
-		fmt.Fprintf(out, "    %s on :%d\n", name, state.Ports[i])
+		fmt.Fprintf(out, "  %s on :%d\n", name, state.Ports[i])
 	}
-	fmt.Fprintf(out, "  %d agents active\n", len(state.Agents))
+	fmt.Fprintf(out, "%d agents active\n", len(state.Agents))
 	return nil
 }
 
 // --- helpers ---
 
-func societyDir() string {
+func societyDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		home = os.TempDir()
+		return "", fmt.Errorf("resolving home directory: %w", err)
 	}
 	dir := filepath.Join(home, ".society")
-	os.MkdirAll(dir, 0755)
-	return dir
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("creating society directory: %w", err)
+	}
+	return dir, nil
 }
 
-func pidFilePath() string {
-	return filepath.Join(societyDir(), "daemon.json")
+func pidFilePath() (string, error) {
+	dir, err := societyDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "daemon.json"), nil
 }
 
 func readDaemonState() (*DaemonState, error) {
-	data, err := os.ReadFile(pidFilePath())
+	path, err := pidFilePath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -269,15 +289,23 @@ func readDaemonState() (*DaemonState, error) {
 }
 
 func writeDaemonState(state *DaemonState) error {
+	path, err := pidFilePath()
+	if err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(pidFilePath(), data, 0644)
+	return os.WriteFile(path, data, 0600)
 }
 
 func removePIDFile() error {
-	return os.Remove(pidFilePath())
+	path, err := pidFilePath()
+	if err != nil {
+		return err
+	}
+	return os.Remove(path)
 }
 
 func isProcessAlive(pid int) bool {

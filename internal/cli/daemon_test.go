@@ -199,10 +199,8 @@ func TestDaemonState_RoundTrip(t *testing.T) {
 
 func TestDaemonStatus_NotRunning(t *testing.T) {
 	// Ensure no PID file exists by using a non-default home.
-	origHome := os.Getenv("HOME")
 	tmpHome := t.TempDir()
-	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpHome)
 
 	out := &bytes.Buffer{}
 	if err := DaemonStatus(out); err != nil {
@@ -215,9 +213,7 @@ func TestDaemonStatus_NotRunning(t *testing.T) {
 
 func TestDaemonStatus_StalePID(t *testing.T) {
 	tmpHome := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpHome)
 
 	// Write a PID file with a PID that definitely doesn't exist.
 	dir := filepath.Join(tmpHome, ".society")
@@ -255,9 +251,7 @@ func TestDaemonRun_StartsAndStops(t *testing.T) {
 	writeAgentYAML(t, dir, "echo2", port2)
 
 	tmpHome := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpHome)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("HOME", tmpHome)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
