@@ -3,9 +3,12 @@ package cli
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +16,9 @@ import (
 	"runtime"
 	"strings"
 )
+
+// maxBinarySize is the maximum size of the extracted binary (200 MB).
+const maxBinarySize = 200 * 1024 * 1024
 
 type ghRelease struct {
 	TagName string    `json:"tag_name"`
@@ -38,6 +44,9 @@ func Update(currentVersion string, out io.Writer) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 403 {
+		return fmt.Errorf("GitHub API rate limit exceeded — try again later or download from https://github.com/lucharo/society/releases")
+	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
@@ -55,16 +64,18 @@ func Update(currentVersion string, out io.Writer) error {
 
 	fmt.Fprintf(out, "Current: v%s → Latest: v%s\n", currentVersion, latest)
 
-	// Find matching asset
+	// Find matching asset and checksums
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 	wantName := fmt.Sprintf("society_%s_%s_%s.tar.gz", latest, osName, arch)
 
-	var downloadURL string
+	var downloadURL, checksumsURL string
 	for _, a := range release.Assets {
-		if a.Name == wantName {
+		switch a.Name {
+		case wantName:
 			downloadURL = a.BrowserDownloadURL
-			break
+		case "SHA256SUMS":
+			checksumsURL = a.BrowserDownloadURL
 		}
 	}
 	if downloadURL == "" {
@@ -101,6 +112,14 @@ func Update(currentVersion string, out io.Writer) error {
 	}
 	f.Close()
 
+	// Verify checksum if available
+	if checksumsURL != "" {
+		if err := verifyChecksum(tarPath, wantName, checksumsURL); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "Checksum verified.")
+	}
+
 	// Extract tar.gz
 	if err := extractTarGz(tarPath, tmpDir); err != nil {
 		return fmt.Errorf("extracting: %w", err)
@@ -121,33 +140,93 @@ func Update(currentVersion string, out io.Writer) error {
 		return fmt.Errorf("resolving symlinks: %w", err)
 	}
 
-	// Atomic-ish replace: rename old, move new, remove old
-	oldPath := currentBinary + ".old"
-	if err := os.Rename(currentBinary, oldPath); err != nil {
-		return fmt.Errorf("backing up current binary: %w (try with sudo?)", err)
+	// Atomic replace: write new binary to temp file in same dir, then rename over current
+	destDir := filepath.Dir(currentBinary)
+	tmpBin, err := os.CreateTemp(destDir, "society-new-*")
+	if err != nil {
+		return fmt.Errorf("creating temp file for new binary: %w (try with sudo?)", err)
 	}
+	tmpBinPath := tmpBin.Name()
 
 	newData, err := os.ReadFile(newBinary)
 	if err != nil {
-		// Restore old binary
-		os.Rename(oldPath, currentBinary)
+		tmpBin.Close()
+		os.Remove(tmpBinPath)
 		return fmt.Errorf("reading new binary: %w", err)
 	}
 
-	if err := os.WriteFile(currentBinary, newData, 0755); err != nil {
-		// Restore old binary
-		os.Rename(oldPath, currentBinary)
+	if _, err := tmpBin.Write(newData); err != nil {
+		tmpBin.Close()
+		os.Remove(tmpBinPath)
 		return fmt.Errorf("writing new binary: %w (try with sudo?)", err)
 	}
+	tmpBin.Close()
 
-	os.Remove(oldPath)
+	if err := os.Chmod(tmpBinPath, 0755); err != nil {
+		os.Remove(tmpBinPath)
+		return fmt.Errorf("setting permissions: %w", err)
+	}
+
+	if err := os.Rename(tmpBinPath, currentBinary); err != nil {
+		os.Remove(tmpBinPath)
+		return fmt.Errorf("replacing binary: %w (try with sudo?)", err)
+	}
 
 	// macOS: ad-hoc code sign
 	if runtime.GOOS == "darwin" {
-		codesign(currentBinary)
+		codesign(currentBinary, out)
 	}
 
 	fmt.Fprintf(out, "Updated to v%s.\n", latest)
+	return nil
+}
+
+func verifyChecksum(filePath, fileName, checksumsURL string) error {
+	resp, err := http.Get(checksumsURL)
+	if err != nil {
+		return fmt.Errorf("downloading checksums: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("checksums download returned %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading checksums: %w", err)
+	}
+
+	// Parse SHA256SUMS: "<hash>  <filename>" per line
+	var expectedHash string
+	for _, line := range strings.Split(string(body), "\n") {
+		parts := strings.Fields(line)
+		if len(parts) == 2 && parts[1] == fileName {
+			expectedHash = parts[0]
+			break
+		}
+	}
+	if expectedHash == "" {
+		return fmt.Errorf("checksum for %s not found in SHA256SUMS", fileName)
+	}
+
+	// Hash the downloaded file
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("hashing file: %w", err)
+	}
+
+	actualHash := hex.EncodeToString(h.Sum(nil))
+	if actualHash != expectedHash {
+		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedHash, actualHash)
+	}
+
 	return nil
 }
 
@@ -185,7 +264,7 @@ func extractTarGz(tarPath, destDir string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(out, tr); err != nil {
+		if _, err := io.Copy(out, io.LimitReader(tr, maxBinarySize)); err != nil {
 			out.Close()
 			return err
 		}
@@ -195,6 +274,9 @@ func extractTarGz(tarPath, destDir string) error {
 	return nil
 }
 
-func codesign(path string) {
-	exec.Command("codesign", "-s", "-", path).Run()
+func codesign(path string, out io.Writer) {
+	if err := exec.Command("codesign", "-s", "-", path).Run(); err != nil {
+		slog.Warn("ad-hoc code signing failed", "error", err)
+		fmt.Fprintln(out, "Warning: ad-hoc code signing failed — you may need to allow the binary in System Settings > Privacy & Security.")
+	}
 }
