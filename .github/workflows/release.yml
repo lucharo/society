@@ -30,7 +30,7 @@ jobs:
             for ARCH in amd64 arm64; do
               NAME="society_${VERSION}_${OS}_${ARCH}"
               echo "Building ${NAME}..."
-              GOOS=$OS GOARCH=$ARCH go build -ldflags "-s -w" -o "dist/society" ./cmd/society
+              GOOS=$OS GOARCH=$ARCH go build -ldflags "-s -w -X main.version=${VERSION}" -o "dist/society" ./cmd/society
               tar -czf "dist/${NAME}.tar.gz" -C dist society
               rm dist/society
             done
@@ -38,7 +38,7 @@ jobs:
 
           # ARM (linux only)
           NAME="society_${VERSION}_linux_arm"
-          GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w" -o "dist/society" ./cmd/society
+          GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w -X main.version=${VERSION}" -o "dist/society" ./cmd/society
           tar -czf "dist/${NAME}.tar.gz" -C dist society
           rm dist/society
 

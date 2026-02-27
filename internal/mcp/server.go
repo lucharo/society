@@ -13,6 +13,9 @@ import (
 	"github.com/luischavesdev/society/internal/registry"
 )
 
+// Version is set by the binary entrypoint to report in MCP initialize.
+var Version = "dev"
+
 // Sender abstracts sending messages to agents (client.Client implements this).
 type Sender interface {
 	Send(ctx context.Context, agentName, text string, threadID ...string) (*models.Task, error)
@@ -96,7 +99,7 @@ func (s *Server) handleInitialize(id json.RawMessage) {
 		},
 		"serverInfo": map[string]any{
 			"name":    "society",
-			"version": "0.1.0",
+			"version": Version,
 		},
 	}
 	s.writeResult(id, result)

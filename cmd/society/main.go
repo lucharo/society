@@ -9,12 +9,18 @@ import (
 	"strings"
 
 	"github.com/luischavesdev/society/internal/cli"
+	"github.com/luischavesdev/society/internal/mcp"
 )
+
+// Set via ldflags: -ldflags "-X main.version=1.2.3"
+var version = "dev"
 
 //go:embed skills
 var skillsFS embed.FS
 
 func main() {
+	mcp.Version = version
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -149,6 +155,12 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "version":
+		fmt.Fprintf(os.Stdout, "society v%s\n", version)
+
+	case "update":
+		err = cli.Update(version, os.Stdout)
+
 	case "skill":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: society skill <install|update>")
@@ -198,6 +210,8 @@ Commands:
   daemon run [agents...]     Start all agents in foreground [--agents <dir>]
   skill install              Install Claude Code skills
   skill update               Update installed skills
+  update                     Update society to the latest release
+  version                    Print the current version
 
 Flags:
   --registry <path>          Registry file (default: registry.json, or SOCIETY_REGISTRY env)`)
