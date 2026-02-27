@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
 	"github.com/luischavesdev/society/internal/models"
@@ -105,6 +106,11 @@ func (s *Server) rebuildToolMap(reg *registry.Registry) {
 	s.toolMap = make(map[string]string)
 	for _, a := range reg.List() {
 		toolName := agentToToolName(a.Name)
+		if existing, ok := s.toolMap[toolName]; ok {
+			slog.Warn("MCP tool name collision, skipping agent",
+				"tool", toolName, "kept", existing, "skipped", a.Name)
+			continue
+		}
 		s.toolMap[toolName] = a.Name
 	}
 }
@@ -122,14 +128,13 @@ func (s *Server) handleToolsList(id json.RawMessage) {
 	s.registry = reg
 	s.rebuildToolMap(reg)
 
+	// Build tool list from toolMap (which already handles collisions).
 	var tools []map[string]any
-	seen := make(map[string]bool)
 	for _, agent := range reg.List() {
 		toolName := agentToToolName(agent.Name)
-		if seen[toolName] {
-			continue // skip collision — first agent wins
+		if s.toolMap[toolName] != agent.Name {
+			continue // this agent was skipped due to collision
 		}
-		seen[toolName] = true
 
 		desc := fmt.Sprintf("Send message to %s agent", agent.Name)
 		if agent.Description != "" {

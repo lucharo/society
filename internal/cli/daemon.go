@@ -231,8 +231,11 @@ func DaemonStop(out io.Writer) error {
 func DaemonStatus(out io.Writer) error {
 	state, err := readDaemonState()
 	if err != nil {
-		fmt.Fprintln(out, "Daemon: not running")
-		return nil
+		if os.IsNotExist(err) {
+			fmt.Fprintln(out, "Daemon: not running")
+			return nil
+		}
+		return fmt.Errorf("reading daemon state: %w", err)
 	}
 
 	if !isProcessAlive(state.PID) {
@@ -246,7 +249,7 @@ func DaemonStatus(out io.Writer) error {
 	for i, name := range state.Agents {
 		fmt.Fprintf(out, "  %s on :%d\n", name, state.Ports[i])
 	}
-	fmt.Fprintf(out, "%d agents active\n", len(state.Agents))
+	fmt.Fprintf(out, "\n%d agents active\n", len(state.Agents))
 	return nil
 }
 
