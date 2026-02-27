@@ -61,13 +61,14 @@ func main() {
 	case "onboard":
 		onboardFlags := flag.NewFlagSet("onboard", flag.ExitOnError)
 		manualFlag := onboardFlags.Bool("manual", false, "Interactive manual setup")
+		deepFlag := onboardFlags.Bool("deep", false, "Probe SSH/Docker hosts for live A2A agents")
 		onboardFlags.Bool("auto", false, "Auto-detect (default, kept for backwards compatibility)")
 		onboardFlags.Parse(os.Args[2:])
 
 		if *manualFlag {
 			err = cli.Onboard(registryPath, os.Stdin, os.Stdout)
 		} else {
-			err = cli.OnboardAuto(registryPath, os.Stdin, os.Stdout)
+			err = cli.OnboardAuto(registryPath, cli.ScanOptions{Deep: *deepFlag}, os.Stdin, os.Stdout)
 		}
 
 	case "list":
@@ -203,7 +204,7 @@ Usage:
   society <command> [arguments]
 
 Commands:
-  onboard [--manual]         Auto-detect and register agents (--manual: interactive wizard)
+  onboard [--manual] [--deep] Auto-detect and register agents (--deep: probe SSH/Docker for live agents)
   list                       List all registered agents
   remove <name>              Remove an agent
   ping <name>                Health-check an agent

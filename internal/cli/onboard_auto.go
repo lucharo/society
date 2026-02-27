@@ -12,12 +12,16 @@ import (
 )
 
 // OnboardAuto scans for available agents and lets the user pick which to register.
-func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
+func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Writer) error {
 	r := bufio.NewReader(in)
 
-	fmt.Fprintf(out, "\n%sScanning for agents...%s\n\n", bold, reset)
+	if opts.Deep {
+		fmt.Fprintf(out, "\n%sScanning for agents (deep mode — probing SSH/Docker hosts)...%s\n\n", bold, reset)
+	} else {
+		fmt.Fprintf(out, "\n%sScanning for agents...%s\n\n", bold, reset)
+	}
 
-	candidates := ScanAll()
+	candidates := ScanAll(opts)
 
 	// Load registry to filter already-registered agents
 	reg, err := registry.Load(registryPath)
@@ -35,10 +39,20 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 		fmt.Fprintf(out, "  %s✓%s Found %d CLI tools: %s\n", green, reset, len(cliCandidates), candidateNames(cliCandidates))
 	}
 	if len(dockerCandidates) > 0 {
-		fmt.Fprintf(out, "  %s✓%s Found %d Docker containers: %s\n", green, reset, len(dockerCandidates), candidateNames(dockerCandidates))
+		v := countVerified(dockerCandidates)
+		if v > 0 {
+			fmt.Fprintf(out, "  %s✓%s Found %d Docker containers (%d with live agents): %s\n", green, reset, len(dockerCandidates), v, candidateNames(dockerCandidates))
+		} else {
+			fmt.Fprintf(out, "  %s✓%s Found %d Docker containers: %s\n", green, reset, len(dockerCandidates), candidateNames(dockerCandidates))
+		}
 	}
 	if len(sshCandidates) > 0 {
-		fmt.Fprintf(out, "  %s✓%s Found %d SSH hosts: %s\n", green, reset, len(sshCandidates), candidateNames(sshCandidates))
+		v := countVerified(sshCandidates)
+		if v > 0 {
+			fmt.Fprintf(out, "  %s✓%s Found %d SSH hosts (%d with live agents): %s\n", green, reset, len(sshCandidates), v, candidateNames(sshCandidates))
+		} else {
+			fmt.Fprintf(out, "  %s✓%s Found %d SSH hosts: %s\n", green, reset, len(sshCandidates), candidateNames(sshCandidates))
+		}
 	}
 	if len(a2aCandidates) > 0 {
 		fmt.Fprintf(out, "  %s✓%s Found %d A2A agents: %s\n", green, reset, len(a2aCandidates), candidateNames(a2aCandidates))
@@ -108,8 +122,8 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	for _, c := range selected {
 		card, needsInput := candidateToCard(c)
 
-		// SSH candidates need the remote agent port
-		if needsInput && c.Source == "ssh" {
+		// SSH candidates need the remote agent port (skip if deep scan verified it)
+		if needsInput && c.Source == "ssh" && !c.Verified {
 			agentPort := prompt(r, out, fmt.Sprintf("Agent port on %s", c.Name), "8080")
 			card.Transport.Config["forward_port"] = agentPort
 			card.URL = fmt.Sprintf("http://localhost:%s", agentPort)
@@ -207,6 +221,16 @@ func candidateNames(candidates []Candidate) string {
 		names[i] = c.Name
 	}
 	return strings.Join(names, ", ")
+}
+
+func countVerified(candidates []Candidate) int {
+	n := 0
+	for _, c := range candidates {
+		if c.Verified {
+			n++
+		}
+	}
+	return n
 }
 
 func candidateToCard(c Candidate) (models.AgentCard, bool) {
