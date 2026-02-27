@@ -1,13 +1,18 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
 	"github.com/luischavesdev/society/internal/cli"
 )
+
+//go:embed skills
+var skillsFS embed.FS
 
 func main() {
 	if len(os.Args) < 2 {
@@ -43,7 +48,15 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "onboard":
-		err = cli.Onboard(registryPath, os.Stdin, os.Stdout)
+		fs := flag.NewFlagSet("onboard", flag.ExitOnError)
+		autoFlag := fs.Bool("auto", false, "Auto-detect agents")
+		fs.Parse(os.Args[2:])
+
+		if *autoFlag {
+			err = cli.OnboardAuto(registryPath, os.Stdin, os.Stdout)
+		} else {
+			err = cli.Onboard(registryPath, os.Stdin, os.Stdout)
+		}
 
 	case "list":
 		err = cli.List(registryPath, os.Stdout)
@@ -136,6 +149,20 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "skill":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society skill <install|update>")
+			os.Exit(1)
+		}
+		switch os.Args[2] {
+		case "install", "update":
+			sub, _ := fs.Sub(skillsFS, "skills")
+			err = cli.SkillInstall(sub, os.Stdout)
+		default:
+			fmt.Fprintf(os.Stderr, "unknown skill subcommand: %s\n", os.Args[2])
+			os.Exit(1)
+		}
+
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		printUsage()
@@ -155,7 +182,7 @@ Usage:
   society <command> [arguments]
 
 Commands:
-  onboard                    Interactive agent registration
+  onboard [--auto]           Interactive agent registration (--auto: detect agents)
   list                       List all registered agents
   remove <name>              Remove an agent
   ping <name>                Health-check an agent
@@ -169,6 +196,8 @@ Commands:
   daemon stop                Stop the running daemon
   daemon status              Show daemon status and agents
   daemon run [agents...]     Start all agents in foreground [--agents <dir>]
+  skill install              Install Claude Code skills
+  skill update               Update installed skills
 
 Flags:
   --registry <path>          Registry file (default: registry.json, or SOCIETY_REGISTRY env)`)

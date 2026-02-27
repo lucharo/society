@@ -6,12 +6,42 @@ Connect AI agents across machines, containers, and networks. One CLI to run, man
 
 ![society banner](docs/src/assets/banner.png)
 
+## How it works
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Claude Code  │     │   Cursor    │     │   CLI       │
+│   (MCP)      │     │   (MCP)     │     │  society    │
+└──────┬───────┘     └──────┬──────┘     └──────┬──────┘
+       │                    │                    │
+       └────────────┬───────┘────────────────────┘
+                    │
+            ┌───────▼────────┐
+            │  society mcp   │  JSON-RPC 2.0 (stdio)
+            │  / society send│
+            └───────┬────────┘
+                    │
+       ┌────────────┼────────────┬──────────────┐
+       │            │            │              │
+  ┌────▼───┐  ┌────▼───┐  ┌────▼─────┐  ┌─────▼────┐
+  │  HTTP  │  │  SSH   │  │  Docker  │  │  STDIO   │
+  │:8001   │  │tunnel  │  │  socket  │  │subprocess│
+  └────┬───┘  └────┬───┘  └────┬─────┘  └─────┬────┘
+       │           │            │              │
+  ┌────▼───┐  ┌────▼───┐  ┌────▼─────┐  ┌─────▼────┐
+  │  echo  │  │ remote │  │container │  │  ollama  │
+  │ agent  │  │ claude │  │  agent   │  │  agent   │
+  └────────┘  └────────┘  └──────────┘  └──────────┘
+```
+
+Society implements the [A2A protocol](https://google.github.io/A2A/) (JSON-RPC 2.0 over HTTP). Agents expose `GET /.well-known/agent.json` for discovery and `POST /` with `tasks/send` for messaging. Society adds transport abstraction on top — SSH tunnels, Docker sockets, and STDIO subprocesses — so agents can live anywhere.
+
 ## Install
 
 **Quick install** (macOS / Linux):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lucharo/society/main/scripts/install.sh | sh
+curl -fsSL https://society.luischav.es/install.sh | sh
 ```
 
 **From source** (requires Go 1.24+):
