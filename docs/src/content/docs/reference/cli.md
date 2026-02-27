@@ -17,13 +17,16 @@ The `--registry` flag must appear before the subcommand.
 
 ## `society onboard`
 
-Interactive wizard to register a new agent.
+Auto-detect available agents and register them.
 
 ```bash
-society onboard
+society onboard            # auto-detect CLIs, Docker, SSH, A2A agents
+society onboard --manual   # interactive wizard for manual setup
 ```
 
-Prompts for: name, description, transport type, transport-specific config, and skills.
+By default, scans for CLIs (claude, codex, ollama, etc.), Docker containers, SSH hosts, and A2A agents on local ports. Presents a numbered list and lets you select which to register.
+
+Use `--manual` for the interactive wizard that prompts for name, description, transport type, and transport-specific config.
 
 ---
 
@@ -227,20 +230,3 @@ Update previously installed skills to the latest version bundled with your socie
 society skill update
 ```
 
----
-
-## `society onboard --auto`
-
-Auto-detect available agents and register them interactively.
-
-```bash
-society onboard --auto
-```
-
-Scans for:
-- **CLIs**: claude, codex, ollama, aider, opencode, droid, goose
-- **Docker containers**: running containers with exposed ports
-- **SSH hosts**: entries in `~/.ssh/config`
-- **A2A agents**: services responding on localhost ports 8001–8010
-
-Presents a numbered list and lets you select which to register.

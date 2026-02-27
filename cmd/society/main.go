@@ -55,13 +55,13 @@ func main() {
 	switch os.Args[1] {
 	case "onboard":
 		onboardFlags := flag.NewFlagSet("onboard", flag.ExitOnError)
-		autoFlag := onboardFlags.Bool("auto", false, "Auto-detect agents")
+		manualFlag := onboardFlags.Bool("manual", false, "Interactive manual setup")
 		onboardFlags.Parse(os.Args[2:])
 
-		if *autoFlag {
-			err = cli.OnboardAuto(registryPath, os.Stdin, os.Stdout)
-		} else {
+		if *manualFlag {
 			err = cli.Onboard(registryPath, os.Stdin, os.Stdout)
+		} else {
+			err = cli.OnboardAuto(registryPath, os.Stdin, os.Stdout)
 		}
 
 	case "list":
@@ -194,7 +194,7 @@ Usage:
   society <command> [arguments]
 
 Commands:
-  onboard [--auto]           Interactive agent registration (--auto: detect agents)
+  onboard [--manual]         Auto-detect and register agents (--manual: interactive wizard)
   list                       List all registered agents
   remove <name>              Remove an agent
   ping <name>                Health-check an agent

@@ -43,6 +43,9 @@ scp society-linux user@server:~/.local/bin/society
 ### 1. Start agents
 
 ```bash
+# Detect and register agents
+society onboard
+
 # Start all agents from agents/ directory
 society daemon start
 
@@ -132,7 +135,7 @@ The `exec` handler wraps any CLI tool as an agent. Built-in handlers: `echo`, `g
 ## Commands
 
 ```
-society onboard [--auto]           Register agents (--auto: detect automatically)
+society onboard [--manual]         Auto-detect and register agents (--manual: wizard)
 society list                       List all agents
 society send <name> <message>      Send a message [--thread <id>]
 society ping <name>                Health-check an agent
