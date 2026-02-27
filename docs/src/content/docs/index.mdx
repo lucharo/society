@@ -1,0 +1,32 @@
+---
+title: society
+description: Agent-to-Agent orchestration over JSON-RPC 2.0
+template: splash
+hero:
+  tagline: Connect AI agents across machines, containers, and networks. One CLI to run, manage, and talk to them all.
+  actions:
+    - text: Get Started
+      link: /getting-started/introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/luischavesdev/society
+      variant: minimal
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+	<Card title="Any transport" icon="rocket">
+		HTTP, SSH tunnels, Docker containers, or stdio subprocesses. Agents talk over JSON-RPC 2.0 regardless of where they live.
+	</Card>
+	<Card title="Multi-machine" icon="laptop">
+		Run agents on your laptop, a home server, or a cloud VM. The registry tracks them all and routes messages through the right transport.
+	</Card>
+	<Card title="MCP native" icon="puzzle">
+		Expose your entire agent fleet as MCP tools. Claude Desktop, Cursor, and any MCP client can call your agents directly.
+	</Card>
+	<Card title="Daemon mode" icon="setting">
+		Start all your agents with one command. Background or foreground, with status tracking and clean shutdown.
+	</Card>
+</CardGrid>

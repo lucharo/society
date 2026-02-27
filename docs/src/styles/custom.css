@@ -1,0 +1,13 @@
+:root {
+	--sl-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--sl-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+	--sl-color-accent-low: #1a1a2e;
+	--sl-color-accent: #e94560;
+	--sl-color-accent-high: #ffd6de;
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #fff0f3;
+	--sl-color-accent: #c81e4a;
+	--sl-color-accent-high: #4a0d1f;
+}
