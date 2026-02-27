@@ -254,13 +254,23 @@ func parseSSHConfig(path string) []sshHost {
 
 		switch key {
 		case "host":
-			// Skip wildcard hosts
-			if strings.Contains(val, "*") || strings.Contains(val, "?") {
+			// Handle multi-value Host (e.g., "Host foo bar")
+			// Use only the first name, skip wildcards
+			hostNames := strings.Fields(val)
+			if len(hostNames) == 0 {
 				current = nil
 				continue
 			}
-			hosts = append(hosts, sshHost{name: val})
+			firstName := hostNames[0]
+			if strings.Contains(firstName, "*") || strings.Contains(firstName, "?") {
+				current = nil
+				continue
+			}
+			hosts = append(hosts, sshHost{name: firstName})
 			current = &hosts[len(hosts)-1]
+		case "match":
+			// Skip Match blocks — their directives shouldn't apply to previous Host
+			current = nil
 		case "hostname":
 			if current != nil {
 				current.hostname = val
@@ -303,40 +313,46 @@ func scanA2A() []Candidate {
 	client := &http.Client{Timeout: 200 * time.Millisecond}
 
 	for _, port := range ports {
-		url := fmt.Sprintf("http://localhost:%d/.well-known/agent.json", port)
-		resp, err := client.Get(url)
-		if err != nil {
-			continue
+		if c, ok := probeA2APort(client, port); ok {
+			candidates = append(candidates, c)
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			continue
-		}
-
-		var card struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&card); err != nil {
-			continue
-		}
-
-		name := card.Name
-		if name == "" {
-			name = fmt.Sprintf("agent-%d", port)
-		}
-
-		candidates = append(candidates, Candidate{
-			Name:        name,
-			Description: card.Description,
-			Transport:   "http",
-			Source:       "a2a",
-			Config: map[string]string{
-				"url":  fmt.Sprintf("http://localhost:%d", port),
-				"port": fmt.Sprintf("%d", port),
-			},
-		})
 	}
 	return candidates
+}
+
+func probeA2APort(client *http.Client, port int) (Candidate, bool) {
+	url := fmt.Sprintf("http://localhost:%d/.well-known/agent.json", port)
+	resp, err := client.Get(url)
+	if err != nil {
+		return Candidate{}, false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return Candidate{}, false
+	}
+
+	var card struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&card); err != nil {
+		return Candidate{}, false
+	}
+
+	name := card.Name
+	if name == "" {
+		name = fmt.Sprintf("agent-%d", port)
+	}
+
+	return Candidate{
+		Name:        name,
+		Description: card.Description,
+		Transport:   "http",
+		Source:      "a2a",
+		Config: map[string]string{
+			"url":  fmt.Sprintf("http://localhost:%d", port),
+			"port": fmt.Sprintf("%d", port),
+		},
+	}, true
 }

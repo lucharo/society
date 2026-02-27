@@ -48,9 +48,9 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "onboard":
-		fs := flag.NewFlagSet("onboard", flag.ExitOnError)
-		autoFlag := fs.Bool("auto", false, "Auto-detect agents")
-		fs.Parse(os.Args[2:])
+		onboardFlags := flag.NewFlagSet("onboard", flag.ExitOnError)
+		autoFlag := onboardFlags.Bool("auto", false, "Auto-detect agents")
+		onboardFlags.Parse(os.Args[2:])
 
 		if *autoFlag {
 			err = cli.OnboardAuto(registryPath, os.Stdin, os.Stdout)

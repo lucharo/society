@@ -93,10 +93,9 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 	}
 
 	// Register each selected candidate
-	portCounter := 8001
 	registered := 0
 	for _, c := range selected {
-		card, needsInput := candidateToCard(c, portCounter)
+		card, needsInput := candidateToCard(c)
 
 		// SSH candidates need the remote agent port
 		if needsInput && c.Source == "ssh" {
@@ -111,7 +110,6 @@ func OnboardAuto(registryPath string, in io.Reader, out io.Writer) error {
 		}
 		fmt.Fprintf(out, "  registered %s\n", c.Name)
 		registered++
-		portCounter++
 	}
 
 	if registered == 0 {
@@ -144,7 +142,7 @@ func candidateNames(candidates []Candidate) string {
 	return strings.Join(names, ", ")
 }
 
-func candidateToCard(c Candidate, portHint int) (models.AgentCard, bool) {
+func candidateToCard(c Candidate) (models.AgentCard, bool) {
 	card := models.AgentCard{
 		Name:        c.Name,
 		Description: c.Description,
