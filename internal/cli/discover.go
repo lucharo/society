@@ -101,11 +101,15 @@ func Discover(registryPath, rawURL string, in io.Reader, out io.Writer) error {
 func fetchAgentCard(rawURL string) (*models.AgentCard, error) {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 
-	// Try .well-known first if URL doesn't end in .json
+	// Try .well-known paths first if URL doesn't end in .json
 	urls := []string{rawURL}
 	if !strings.HasSuffix(rawURL, ".json") {
-		wellKnown := strings.TrimRight(rawURL, "/") + "/.well-known/agent.json"
-		urls = []string{wellKnown, rawURL}
+		base := strings.TrimRight(rawURL, "/")
+		urls = []string{
+			base + "/.well-known/agent-card.json", // A2A spec path
+			base + "/.well-known/agent.json",      // legacy path
+			rawURL,
+		}
 	}
 
 	var lastErr error

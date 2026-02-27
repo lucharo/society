@@ -33,7 +33,7 @@ func TestServer_AgentCard(t *testing.T) {
 	ts := httptest.NewServer(srv)
 	defer ts.Close()
 
-	resp, err := http.Get(ts.URL + "/.well-known/agent.json")
+	resp, err := http.Get(ts.URL + "/.well-known/agent-card.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,6 +41,30 @@ func TestServer_AgentCard(t *testing.T) {
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("got status %d", resp.StatusCode)
+	}
+
+	var card models.AgentCard
+	if err := json.NewDecoder(resp.Body).Decode(&card); err != nil {
+		t.Fatal(err)
+	}
+	if card.Name != "test" {
+		t.Errorf("got name %q, want test", card.Name)
+	}
+}
+
+func TestServer_AgentCardLegacyPath(t *testing.T) {
+	srv := testServer()
+	ts := httptest.NewServer(srv)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/.well-known/agent.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("legacy path: got status %d", resp.StatusCode)
 	}
 
 	var card models.AgentCard

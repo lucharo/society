@@ -10,7 +10,7 @@ Connect AI agents across machines, containers, and networks. One CLI to run, man
 
 ![Architecture: four layers — Interfaces (MCP Server for Claude Code/Cursor, CLI for society send/ping), Society Core (Registry, Client, Thread Manager), Transports (HTTP, SSH Tunnel, Docker Socket, STDIO Subprocess), and Agents (local, remote via SSH, containers, CLI tools like ollama and claude)](docs/src/assets/architecture.png)
 
-Society implements the [A2A protocol](https://google.github.io/A2A/) (JSON-RPC 2.0 over HTTP). Agents expose `GET /.well-known/agent.json` for discovery and `POST /` with `tasks/send` for messaging. Society adds transport abstraction on top — SSH tunnels, Docker sockets, and STDIO subprocesses — so agents can live anywhere.
+Society implements the [A2A protocol](https://a2a-protocol.org) (JSON-RPC 2.0 over HTTP). Agents expose `GET /.well-known/agent-card.json` for discovery and `POST /` with `tasks/send` for messaging. Society adds transport abstraction on top — SSH tunnels, Docker sockets, and STDIO subprocesses — so agents can live anywhere.
 
 ## Install
 

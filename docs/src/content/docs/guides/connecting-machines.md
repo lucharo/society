@@ -161,7 +161,7 @@ Transport [http/ssh/docker/stdio]: http
 Added "echo" to registry
 ```
 
-This fetches the agent card from `/.well-known/agent.json` and registers it.
+This fetches the agent card from `/.well-known/agent-card.json` and registers it.
 
 ## Verifying connectivity
 

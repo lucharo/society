@@ -39,7 +39,7 @@ func (s *Server) Start(ctx context.Context, addr string) error {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
-	case r.URL.Path == "/.well-known/agent.json" && r.Method == http.MethodGet:
+	case (r.URL.Path == "/.well-known/agent-card.json" || r.URL.Path == "/.well-known/agent.json") && r.Method == http.MethodGet:
 		s.handleAgentCard(w)
 	case r.URL.Path == "/" && r.Method == http.MethodPost:
 		s.handleRPC(w, r)

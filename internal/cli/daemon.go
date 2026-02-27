@@ -158,10 +158,13 @@ func runAgents(ctx context.Context, configs []*models.AgentConfig, agentsDir str
 		}
 
 		card := models.AgentCard{
-			Name:        cfg.Name,
-			Description: cfg.Description,
-			URL:         fmt.Sprintf("http://localhost:%d", cfg.Port),
-			Skills:      cfg.Skills,
+			Name:               cfg.Name,
+			Description:        cfg.Description,
+			URL:                fmt.Sprintf("http://localhost:%d", cfg.Port),
+			Version:            "1.0.0",
+			Skills:             cfg.Skills,
+			DefaultInputModes:  []string{"text/plain"},
+			DefaultOutputModes: []string{"text/plain"},
 		}
 
 		srv := agent.NewServer(card, h)

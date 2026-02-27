@@ -3,26 +3,25 @@ title: A2A Protocol
 description: The Agent-to-Agent wire protocol
 ---
 
-Society implements a subset of the [Agent-to-Agent (A2A) protocol](https://google.github.io/A2A/) over JSON-RPC 2.0. Every agent exposes two HTTP endpoints.
+Society implements the [Agent-to-Agent (A2A) protocol](https://a2a-protocol.org) over JSON-RPC 2.0. Every agent exposes two HTTP endpoints.
 
 ## Endpoints
 
-### `GET /.well-known/agent.json`
+### `GET /.well-known/agent-card.json`
 
-Returns the agent card — metadata about the agent.
+Returns the agent card — metadata about the agent. This follows the [A2A spec](https://a2a-protocol.org/latest/specification/) discovery path. The legacy path `/.well-known/agent.json` is also supported for backwards compatibility.
 
 ```json
 {
   "name": "claude",
   "description": "Claude Code agent",
   "url": "http://localhost:8003",
+  "version": "1.0.0",
   "skills": [
     { "id": "code", "name": "Code Assistant" }
   ],
-  "capabilities": {
-    "streaming": false,
-    "pushNotifications": false
-  }
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
 }
 ```
 

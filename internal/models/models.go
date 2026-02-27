@@ -6,24 +6,42 @@ type TransportConfig struct {
 }
 
 type AgentCard struct {
-	Name         string           `json:"name"`
-	Description  string           `json:"description,omitempty"`
-	URL          string           `json:"url"`
-	Version      string           `json:"version,omitempty"`
-	Skills       []Skill          `json:"skills,omitempty"`
-	Capabilities Capabilities     `json:"capabilities,omitempty"`
-	Transport *TransportConfig `json:"transport,omitempty"`
+	Name               string           `json:"name"`
+	Description        string           `json:"description,omitempty"`
+	URL                string           `json:"url"`
+	Version            string           `json:"version,omitempty"`
+	Provider           *Provider        `json:"provider,omitempty"`
+	Skills             []Skill          `json:"skills,omitempty"`
+	Capabilities       *Capabilities    `json:"capabilities,omitempty"`
+	DefaultInputModes  []string         `json:"defaultInputModes,omitempty"`
+	DefaultOutputModes []string         `json:"defaultOutputModes,omitempty"`
+	Authentication     *Authentication  `json:"authentication,omitempty"`
+	DocumentationURL   string           `json:"documentationUrl,omitempty"`
+	Transport          *TransportConfig `json:"transport,omitempty"`
+}
+
+type Provider struct {
+	Organization string `json:"organization"`
+	URL          string `json:"url,omitempty"`
 }
 
 type Skill struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Examples    []string `json:"examples,omitempty"`
+}
+
+type Authentication struct {
+	Schemes     []string `json:"schemes"`
+	Credentials string   `json:"credentials,omitempty"`
 }
 
 type Capabilities struct {
-	Streaming         bool `json:"streaming"`
-	PushNotifications bool `json:"pushNotifications"`
+	Streaming              bool `json:"streaming,omitempty"`
+	PushNotifications      bool `json:"pushNotifications,omitempty"`
+	StateTransitionHistory bool `json:"stateTransitionHistory,omitempty"`
 }
 
 type Task struct {

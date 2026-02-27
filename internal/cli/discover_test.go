@@ -21,7 +21,7 @@ func TestDiscover_Valid(t *testing.T) {
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/.well-known/agent.json" {
+		if r.URL.Path == "/.well-known/agent-card.json" {
 			json.NewEncoder(w).Encode(card)
 		} else {
 			http.NotFound(w, r)
@@ -98,6 +98,37 @@ func TestDiscover_InvalidJSON(t *testing.T) {
 	err := Discover(regPath, ts.URL, strings.NewReader(""), &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestDiscover_LegacyPath(t *testing.T) {
+	card := models.AgentCard{
+		Name: "legacy",
+		URL:  "http://example.com",
+	}
+
+	// Server only serves the old agent.json path
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/agent.json" {
+			json.NewEncoder(w).Encode(card)
+		} else {
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	regPath := t.TempDir() + "/reg.json"
+	input := "y\nhttp\n"
+	out := &bytes.Buffer{}
+
+	err := Discover(regPath, ts.URL, strings.NewReader(input), out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg, _ := registry.Load(regPath)
+	if !reg.Has("legacy") {
+		t.Error("should discover via legacy agent.json fallback")
 	}
 }
 

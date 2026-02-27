@@ -128,7 +128,7 @@ Discover an agent from an A2A endpoint.
 society discover http://server:8001
 ```
 
-Fetches the agent card from `/.well-known/agent.json`, displays it, and optionally adds it to the registry with a transport config you choose.
+Fetches the agent card from `/.well-known/agent-card.json` (or the legacy `/.well-known/agent.json`), displays it, and optionally adds it to the registry with a transport config you choose.
 
 ---
 

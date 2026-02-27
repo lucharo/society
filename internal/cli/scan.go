@@ -321,7 +321,7 @@ func scanA2A() []Candidate {
 }
 
 func probeA2APort(client *http.Client, port int) (Candidate, bool) {
-	url := fmt.Sprintf("http://localhost:%d/.well-known/agent.json", port)
+	url := fmt.Sprintf("http://localhost:%d/.well-known/agent-card.json", port)
 	resp, err := client.Get(url)
 	if err != nil {
 		return Candidate{}, false
