@@ -101,6 +101,7 @@ func (s *Store) List(agent string) ([]*Thread, error) {
 func validateID(id string) error {
 	if id == "" || id == "." || id == ".." ||
 		strings.ContainsAny(id, "/\\") ||
+		strings.ContainsRune(id, 0) ||
 		filepath.Base(id) != id {
 		return fmt.Errorf("invalid thread ID: %q", id)
 	}

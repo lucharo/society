@@ -90,7 +90,7 @@ func TestStore_List(t *testing.T) {
 func TestStore_PathTraversal(t *testing.T) {
 	s := NewStore(t.TempDir())
 
-	badIDs := []string{"../etc/passwd", "../../tmp/evil", "foo/bar", ".", ".."}
+	badIDs := []string{"../etc/passwd", "../../tmp/evil", "foo/bar", "foo\\bar", ".", "..", "null\x00byte"}
 	for _, id := range badIDs {
 		t.Run("load_"+id, func(t *testing.T) {
 			_, err := s.Load(id)
