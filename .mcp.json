@@ -2,8 +2,7 @@
   "mcpServers": {
     "society": {
       "command": "./society",
-      "args": ["mcp"],
-      "_comment": "Requires 'go build -o society ./cmd/society' first. Run from the project root."
+      "args": ["mcp"]
     }
   }
 }

@@ -12,7 +12,9 @@ Connect AI agents across machines, containers, and networks. One CLI to run, man
 git clone https://github.com/lucharo/society.git
 cd society
 go build -o society ./cmd/society
-mv society ~/.local/bin/
+
+# Optional: move to a directory on your PATH
+mv society ~/.local/bin/  # ensure ~/.local/bin is in your PATH
 ```
 
 Cross-compile for a remote server:
