@@ -26,20 +26,13 @@ The `exec` handler is the most powerful — it lets you wrap any command-line to
 
 ## Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│ society CLI  │────▸│   Registry   │────▸│  Transport Layer │
-│  or MCP      │     │ registry.json│     │  HTTP/SSH/Docker │
-└─────────────┘     └──────────────┘     └────────┬────────┘
-                                                   │
-                          ┌────────────────────────┼────────────────┐
-                          │                        │                │
-                    ┌─────▾─────┐          ┌──────▾──────┐  ┌─────▾──────┐
-                    │  Local     │          │  Docker     │  │  Remote    │
-                    │  Agent     │          │  Agent      │  │  Agent     │
-                    │  :8001     │          │  container  │  │  SSH :8003 │
-                    └───────────┘          └─────────────┘  └────────────┘
-```
+![Architecture: four layers — Interfaces (MCP Server for Claude Code/Cursor, CLI), Society Core (Registry, Client, Thread Manager), Transports (HTTP, SSH Tunnel, Docker Socket, STDIO Subprocess), and Agents (local, remote, containers, CLI tools)](../../../assets/architecture.png)
+
+### Request flow
+
+Here's what happens when Claude Code sends a message to a remote agent:
+
+![Request flow: Claude Code calls MCP tools/call, society mcp looks up the agent in the registry, opens the transport (e.g. SSH tunnel), sends a POST tasks/send JSON-RPC request to the remote agent, and returns the response back through the chain](../../../assets/request-flow.png)
 
 ## Next steps
 
