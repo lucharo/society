@@ -1,0 +1,141 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/luischavesdev/society/internal/cli"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	registryPath := os.Getenv("SOCIETY_REGISTRY")
+	if registryPath == "" {
+		registryPath = "registry.json"
+	}
+
+	// Check for global --registry flag before subcommand
+	for i, arg := range os.Args[1:] {
+		if arg == "--registry" && i+2 < len(os.Args) {
+			registryPath = os.Args[i+2]
+			// Remove the flag from args
+			os.Args = append(os.Args[:i+1], os.Args[i+3:]...)
+			break
+		}
+		if strings.HasPrefix(arg, "--registry=") {
+			registryPath = strings.TrimPrefix(arg, "--registry=")
+			os.Args = append(os.Args[:i+1], os.Args[i+2:]...)
+			break
+		}
+	}
+
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	var err error
+	switch os.Args[1] {
+	case "onboard":
+		err = cli.Onboard(registryPath, os.Stdin, os.Stdout)
+
+	case "list":
+		err = cli.List(registryPath, os.Stdout)
+
+	case "remove":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society remove <name>")
+			os.Exit(1)
+		}
+		err = cli.Remove(registryPath, os.Args[2], os.Stdin, os.Stdout)
+
+	case "ping":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society ping <name>")
+			os.Exit(1)
+		}
+		err = cli.Ping(registryPath, os.Args[2], os.Stdout)
+
+	case "run":
+		fs := flag.NewFlagSet("run", flag.ExitOnError)
+		configPath := fs.String("config", "", "Agent config file path")
+		stdio := fs.Bool("stdio", false, "Run in STDIO mode")
+		fs.Parse(os.Args[2:])
+
+		if *configPath == "" {
+			fmt.Fprintln(os.Stderr, "usage: society run --config <path> [--stdio]")
+			os.Exit(1)
+		}
+		err = cli.Run(*configPath, *stdio, os.Stdout)
+
+	case "send":
+		fs := flag.NewFlagSet("send", flag.ExitOnError)
+		threadFlag := fs.String("thread", "", "Continue an existing thread")
+		fs.Parse(os.Args[2:])
+
+		sendArgs := fs.Args()
+		if len(sendArgs) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: society send <name> <message> [--thread <id>]")
+			os.Exit(1)
+		}
+		message := strings.Join(sendArgs[1:], " ")
+		err = cli.Send(registryPath, sendArgs[0], message, os.Stdout, *threadFlag)
+
+	case "export":
+		fs := flag.NewFlagSet("export", flag.ExitOnError)
+		outputPath := fs.String("output", "", "Output file path (default: stdout)")
+		fs.Parse(os.Args[2:])
+		err = cli.Export(registryPath, *outputPath, os.Stdout)
+
+	case "import":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society import <path-or-url>")
+			os.Exit(1)
+		}
+		err = cli.Import(registryPath, os.Args[2], os.Stdin, os.Stdout)
+
+	case "discover":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: society discover <url>")
+			os.Exit(1)
+		}
+		err = cli.Discover(registryPath, os.Args[2], os.Stdin, os.Stdout)
+
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
+		printUsage()
+		os.Exit(1)
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Fprintln(os.Stderr, `society — A2A agent orchestration
+
+Usage:
+  society <command> [arguments]
+
+Commands:
+  onboard                    Interactive agent registration
+  list                       List all registered agents
+  remove <name>              Remove an agent
+  ping <name>                Health-check an agent
+  run --config <path>        Start an agent from config
+  send <name> <message>      Send a message to an agent [--thread <id>]
+  export [--output <path>]   Export registry
+  import <path-or-url>       Import agents
+  discover <url>             Discover agent from A2A endpoint
+
+Flags:
+  --registry <path>          Registry file (default: registry.json, or SOCIETY_REGISTRY env)`)
+}

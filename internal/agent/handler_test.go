@@ -108,16 +108,19 @@ func TestGreeterHandler(t *testing.T) {
 func TestNewHandler(t *testing.T) {
 	tests := []struct {
 		name    string
+		cfg     *models.AgentConfig
 		wantErr bool
 	}{
-		{"echo", false},
-		{"greeter", false},
-		{"unknown", true},
+		{"echo", &models.AgentConfig{Name: "echo", Handler: "echo"}, false},
+		{"greeter", &models.AgentConfig{Name: "greeter", Handler: "greeter"}, false},
+		{"exec", &models.AgentConfig{Name: "claude", Handler: "exec", Backend: &models.BackendConfig{Command: "claude"}}, false},
+		{"exec no backend", &models.AgentConfig{Name: "bad", Handler: "exec"}, true},
+		{"unknown", &models.AgentConfig{Name: "x", Handler: "unknown"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewHandler(tt.name)
+			_, err := NewHandler(tt.cfg)
 			if tt.wantErr && err == nil {
 				t.Fatal("expected error")
 			}

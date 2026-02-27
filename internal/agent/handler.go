@@ -5,20 +5,26 @@ import (
 	"fmt"
 
 	"github.com/luischavesdev/society/internal/models"
+	"github.com/luischavesdev/society/internal/thread"
 )
 
 type Handler interface {
 	Handle(ctx context.Context, params *models.SendTaskParams) (*models.Task, error)
 }
 
-func NewHandler(name string) (Handler, error) {
-	switch name {
+func NewHandler(cfg *models.AgentConfig) (Handler, error) {
+	switch cfg.Handler {
 	case "echo":
 		return &EchoHandler{}, nil
 	case "greeter":
 		return &GreeterHandler{}, nil
+	case "exec":
+		if cfg.Backend == nil {
+			return nil, fmt.Errorf("exec handler requires backend config")
+		}
+		return NewExecHandler(cfg.Name, cfg.Backend, thread.DefaultStore()), nil
 	default:
-		return nil, fmt.Errorf("unknown handler: %s", name)
+		return nil, fmt.Errorf("unknown handler: %s", cfg.Handler)
 	}
 }
 

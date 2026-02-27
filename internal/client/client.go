@@ -19,7 +19,7 @@ func New(reg *registry.Registry) *Client {
 	return &Client{registry: reg}
 }
 
-func (c *Client) Send(ctx context.Context, agentName, text string) (*models.Task, error) {
+func (c *Client) Send(ctx context.Context, agentName, text string, threadID ...string) (*models.Task, error) {
 	card, err := c.registry.Get(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("agent not found: %w", err)
@@ -35,6 +35,9 @@ func (c *Client) Send(ctx context.Context, agentName, text string) (*models.Task
 	defer tr.Close()
 
 	taskID := uuid.New().String()
+	if len(threadID) > 0 && threadID[0] != "" {
+		taskID = threadID[0]
+	}
 	req := models.JSONRPCRequest{
 		JSONRPC: "2.0",
 		ID:      taskID,

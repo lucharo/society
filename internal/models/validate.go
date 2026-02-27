@@ -39,10 +39,12 @@ func ValidateRegistry(agents []AgentCard) error {
 			seen[a.Name] = true
 		}
 
-		if a.URL == "" {
-			errs.Add(fmt.Sprintf("%s: url is required", prefix))
-		} else if _, err := url.Parse(a.URL); err != nil {
-			errs.Add(fmt.Sprintf("%s: invalid url: %v", prefix, err))
+		if a.URL == "" && a.ConfigPath == "" {
+			errs.Add(fmt.Sprintf("%s: url or config_path is required", prefix))
+		} else if a.URL != "" {
+			if _, err := url.Parse(a.URL); err != nil {
+				errs.Add(fmt.Sprintf("%s: invalid url: %v", prefix, err))
+			}
 		}
 
 		if a.Transport != nil {
@@ -66,10 +68,12 @@ func ValidateAgentCard(card AgentCard) error {
 	if card.Name == "" {
 		errs.Add("name is required")
 	}
-	if card.URL == "" {
-		errs.Add("url is required")
-	} else if _, err := url.Parse(card.URL); err != nil {
-		errs.Add(fmt.Sprintf("invalid url: %v", err))
+	if card.URL == "" && card.ConfigPath == "" {
+		errs.Add("url or config_path is required")
+	} else if card.URL != "" {
+		if _, err := url.Parse(card.URL); err != nil {
+			errs.Add(fmt.Sprintf("invalid url: %v", err))
+		}
 	}
 	if card.Transport != nil {
 		if err := ValidateTransportConfig(card.Transport); err != nil {
@@ -162,12 +166,18 @@ func ValidateAgentConfig(cfg AgentConfig) error {
 	if cfg.Name == "" {
 		errs.Add("name is required")
 	}
-	if cfg.Port < 1 || cfg.Port > 65535 {
+	if cfg.Port != 0 && (cfg.Port < 1 || cfg.Port > 65535) {
 		errs.Add("port must be between 1 and 65535")
 	}
 	switch cfg.Handler {
 	case "echo", "greeter":
 		// valid
+	case "exec":
+		if cfg.Backend == nil {
+			errs.Add("exec handler requires backend config")
+		} else if cfg.Backend.Command == "" {
+			errs.Add("exec handler requires backend command")
+		}
 	default:
 		errs.Add(fmt.Sprintf("unknown handler %q", cfg.Handler))
 	}

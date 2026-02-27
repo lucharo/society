@@ -21,7 +21,7 @@ func Run(configPath string, stdio bool, out io.Writer) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	h, err := agent.NewHandler(cfg.Handler)
+	h, err := agent.NewHandler(cfg)
 	if err != nil {
 		return err
 	}

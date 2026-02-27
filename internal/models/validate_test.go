@@ -26,10 +26,14 @@ func TestValidateRegistry(t *testing.T) {
 			errMsg:  "name is required",
 		},
 		{
-			name:    "missing url",
+			name:    "missing url and config_path",
 			agents:  []AgentCard{{Name: "a"}},
 			wantErr: true,
-			errMsg:  "url is required",
+			errMsg:  "url or config_path is required",
+		},
+		{
+			name:   "config_path instead of url",
+			agents: []AgentCard{{Name: "a", ConfigPath: "agents/claude.yaml"}},
 		},
 		{
 			name: "duplicate names",
@@ -125,10 +129,14 @@ func TestValidateAgentCard(t *testing.T) {
 			errMsg:  "name is required",
 		},
 		{
-			name:    "missing url",
+			name:    "missing url and config_path",
 			card:    AgentCard{Name: "a"},
 			wantErr: true,
-			errMsg:  "url is required",
+			errMsg:  "url or config_path is required",
+		},
+		{
+			name: "config_path instead of url",
+			card: AgentCard{Name: "a", ConfigPath: "agents/claude.yaml"},
 		},
 		{
 			name: "valid with transport",
@@ -357,16 +365,30 @@ func TestValidateAgentConfig(t *testing.T) {
 			errMsg:  "name is required",
 		},
 		{
-			name:    "port zero",
-			cfg:     AgentConfig{Name: "a", Port: 0, Handler: "echo"},
-			wantErr: true,
-			errMsg:  "port must be between",
+			name: "port zero allowed",
+			cfg:  AgentConfig{Name: "a", Port: 0, Handler: "echo"},
 		},
 		{
 			name:    "port too high",
 			cfg:     AgentConfig{Name: "a", Port: 70000, Handler: "echo"},
 			wantErr: true,
 			errMsg:  "port must be between",
+		},
+		{
+			name: "valid exec",
+			cfg:  AgentConfig{Name: "a", Handler: "exec", Backend: &BackendConfig{Command: "claude"}},
+		},
+		{
+			name:    "exec missing backend",
+			cfg:     AgentConfig{Name: "a", Handler: "exec"},
+			wantErr: true,
+			errMsg:  "exec handler requires backend config",
+		},
+		{
+			name:    "exec empty command",
+			cfg:     AgentConfig{Name: "a", Handler: "exec", Backend: &BackendConfig{}},
+			wantErr: true,
+			errMsg:  "exec handler requires backend command",
 		},
 		{
 			name:    "unknown handler",

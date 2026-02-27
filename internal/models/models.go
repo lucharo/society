@@ -13,6 +13,8 @@ type AgentCard struct {
 	Skills       []Skill          `json:"skills,omitempty"`
 	Capabilities Capabilities     `json:"capabilities,omitempty"`
 	Transport    *TransportConfig `json:"transport,omitempty"`
+	ConfigPath   string           `json:"config_path,omitempty"`
+	Backend      string           `json:"backend,omitempty"`
 }
 
 type Skill struct {
@@ -89,12 +91,20 @@ type SendTaskParams struct {
 	Message Message `json:"message"`
 }
 
+type BackendConfig struct {
+	Command     string   `yaml:"command"`
+	Args        []string `yaml:"args,omitempty"`
+	SessionFlag string   `yaml:"session_flag,omitempty"`
+	Env         []string `yaml:"env,omitempty"`
+}
+
 type AgentConfig struct {
-	Name        string  `yaml:"name"`
-	Description string  `yaml:"description,omitempty"`
-	Port        int     `yaml:"port"`
-	Handler     string  `yaml:"handler"`
-	Skills      []Skill `yaml:"skills,omitempty"`
+	Name        string         `yaml:"name"`
+	Description string         `yaml:"description,omitempty"`
+	Port        int            `yaml:"port,omitempty"`
+	Handler     string         `yaml:"handler"`
+	Backend     *BackendConfig `yaml:"backend,omitempty"`
+	Skills      []Skill        `yaml:"skills,omitempty"`
 }
 
 type RegistryFile struct {
