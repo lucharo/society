@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/luischavesdev/society/internal/models"
@@ -106,6 +107,11 @@ func (r *Registry) Save() error {
 		return fmt.Errorf("marshaling registry: %w", err)
 	}
 	data = append(data, '\n')
+	if dir := filepath.Dir(r.path); dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("creating registry directory: %w", err)
+		}
+	}
 	if err := os.WriteFile(r.path, data, 0644); err != nil {
 		return fmt.Errorf("writing registry: %w", err)
 	}
