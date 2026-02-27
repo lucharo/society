@@ -93,7 +93,7 @@ ssh user@server "ss -tlnp | grep 8003"
 ```
 
 **"host key verification disabled" warning:**
-Society currently uses `InsecureIgnoreHostKey` for SSH. This is logged as a warning. Known hosts verification is planned.
+Society currently uses `InsecureIgnoreHostKey` for SSH. This means the connection is **vulnerable to man-in-the-middle attacks** — a malicious host could impersonate your server. On trusted networks (e.g., Tailscale) this is low risk, but avoid using SSH transport over untrusted networks until known hosts verification is added.
 
 **"reading key" error:**
 Check that `key_path` points to a valid private key and the file is readable.

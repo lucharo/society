@@ -7,7 +7,7 @@ export default defineConfig({
 		starlight({
 			title: 'society',
 			description: 'Agent-to-Agent orchestration over JSON-RPC 2.0',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/luischavesdev/society' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/lucharo/society' }],
 			customCss: ['./src/styles/custom.css'],
 			sidebar: [
 				{
