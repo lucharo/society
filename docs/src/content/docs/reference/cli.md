@@ -179,3 +179,68 @@ Start agents in the foreground (logs to stdout, Ctrl+C to stop).
 society daemon run
 society daemon run echo greeter
 ```
+
+---
+
+## `society update`
+
+Check for a new release and update the binary in place.
+
+```bash
+society update
+```
+
+Downloads the latest release from GitHub, verifies it matches your OS and architecture, and replaces the current binary. On macOS, applies ad-hoc code signing automatically.
+
+Dev builds (built from source without version ldflags) cannot self-update — use the install script or rebuild from source instead.
+
+---
+
+## `society version`
+
+Print the current version.
+
+```bash
+society version
+# society v0.1.0
+```
+
+---
+
+## `society skill`
+
+Manage Claude Code skills for society.
+
+### `skill install`
+
+Install society skills into `~/.claude/skills/`.
+
+```bash
+society skill install
+```
+
+### `skill update`
+
+Update previously installed skills to the latest version bundled with your society binary.
+
+```bash
+society skill update
+```
+
+---
+
+## `society onboard --auto`
+
+Auto-detect available agents and register them interactively.
+
+```bash
+society onboard --auto
+```
+
+Scans for:
+- **CLIs**: claude, codex, ollama, aider, opencode, droid, goose
+- **Docker containers**: running containers with exposed ports
+- **SSH hosts**: entries in `~/.ssh/config`
+- **A2A agents**: services responding on localhost ports 8001–8010
+
+Presents a numbered list and lets you select which to register.

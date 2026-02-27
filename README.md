@@ -132,9 +132,9 @@ The `exec` handler wraps any CLI tool as an agent. Built-in handlers: `echo`, `g
 ## Commands
 
 ```
-society onboard                    Register an agent interactively
+society onboard [--auto]           Register agents (--auto: detect automatically)
 society list                       List all agents
-society send <name> <message>      Send a message
+society send <name> <message>      Send a message [--thread <id>]
 society ping <name>                Health-check an agent
 society daemon start               Start all agents in background
 society daemon stop                Stop the daemon
@@ -143,6 +143,9 @@ society mcp                        Start MCP server (stdio)
 society discover <url>             Discover agent from A2A endpoint
 society import <file>              Import agents from JSON
 society export                     Export registry
+society update                     Update to latest release
+society version                    Print current version
+society skill install              Install Claude Code skills
 ```
 
 ## Docs

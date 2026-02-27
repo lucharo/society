@@ -3,12 +3,32 @@ title: Installation
 description: How to install society
 ---
 
+## Quick install
+
+Download the latest release binary (macOS / Linux):
+
+```bash
+curl -fsSL https://society.luischav.es/install.sh | sh
+```
+
+This detects your OS and architecture, downloads the binary, verifies the checksum, and installs to `/usr/local/bin` (or `~/.local/bin` if not writable).
+
+## Update
+
+If you already have society installed:
+
+```bash
+society update
+```
+
+This checks GitHub for the latest release and replaces the binary in place.
+
 ## From source
 
 Society is a single Go binary with no runtime dependencies.
 
 ```bash
-git clone https://github.com/luischavesdev/society.git
+git clone https://github.com/lucharo/society.git
 cd society
 go build -o society ./cmd/society
 ```
