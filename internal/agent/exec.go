@@ -88,8 +88,16 @@ func (h *ExecHandler) Handle(ctx context.Context, params *models.SendTaskParams)
 		}
 	}
 
-	// Build command args
-	isFollowUp := len(th.Messages) > 0
+	// Build command args: treat as follow-up only if there's a successful exchange
+	// (has assistant reply). A thread with only user messages means the previous
+	// attempt failed before the backend created a session.
+	isFollowUp := false
+	for _, m := range th.Messages {
+		if m.Role == "assistant" {
+			isFollowUp = true
+			break
+		}
+	}
 	args := make([]string, len(h.backend.Args))
 	copy(args, h.backend.Args)
 	args = append(args, userText)

@@ -168,7 +168,7 @@ func TestHTTP_ExecEcho(t *testing.T) {
 	if task.Status.State != models.TaskStateCompleted {
 		t.Errorf("got state %s, message: %s", task.Status.State, task.Status.Message)
 	}
-	if len(task.Artifacts) == 0 || task.Artifacts[0].Parts[0].Text != "hello from exec" {
+	if len(task.Artifacts) == 0 || len(task.Artifacts[0].Parts) == 0 || task.Artifacts[0].Parts[0].Text != "hello from exec" {
 		t.Errorf("unexpected response: %+v", task.Artifacts)
 	}
 }
