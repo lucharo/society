@@ -21,7 +21,7 @@ func (ve ValidationErrors) HasErrors() bool {
 }
 
 var validTransportTypes = map[string]bool{
-	"http": true, "ssh": true, "docker": true, "stdio": true,
+	"http": true, "ssh": true, "ssh-exec": true, "docker": true, "stdio": true,
 }
 
 func ValidateRegistry(agents []AgentCard) error {
@@ -116,6 +116,19 @@ func ValidateTransportConfig(tc *TransportConfig) error {
 	case "stdio":
 		if cfg["command"] == "" {
 			errs.Add("stdio transport requires command")
+		}
+	case "ssh-exec":
+		if cfg["host"] == "" {
+			errs.Add("ssh-exec transport requires host")
+		}
+		if cfg["user"] == "" {
+			errs.Add("ssh-exec transport requires user")
+		}
+		if cfg["key_path"] == "" {
+			errs.Add("ssh-exec transport requires key_path")
+		}
+		if cfg["command"] == "" {
+			errs.Add("ssh-exec transport requires command")
 		}
 	}
 

@@ -27,8 +27,8 @@ type ScanOptions struct {
 type Candidate struct {
 	Name        string
 	Description string
-	Transport   string // "http", "ssh", "docker", "stdio"
-	Source      string // "cli", "docker", "ssh", "a2a"
+	Transport   string // "http", "ssh", "ssh-exec", "docker", "stdio"
+	Source      string // "cli", "docker", "ssh", "ssh-cli", "a2a"
 	Config      map[string]string
 	Verified    bool // true = confirmed live A2A agent via probe
 }
@@ -44,6 +44,12 @@ var knownCLIs = map[string]string{
 	"goose":    "Goose AI agent",
 }
 
+// knownCLIArgs maps CLI tool names to default arguments for remote execution.
+var knownCLIArgs = map[string]string{
+	"claude": "-p --output-format json",
+	"codex":  "--quiet",
+}
+
 // ScanAll runs all detection functions and returns candidates.
 func ScanAll(opts ScanOptions) []Candidate {
 	var all []Candidate
@@ -53,6 +59,7 @@ func ScanAll(opts ScanOptions) []Candidate {
 	all = append(all, scanA2A()...)
 	if opts.Deep {
 		deep := append(scanDockerDeep(), scanSSHDeep()...)
+		deep = append(deep, scanSSHDeepCLIs()...)
 		all = dedup(all, deep)
 	}
 	return all
@@ -644,6 +651,117 @@ func probeViaSSH(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Ca
 				"key_path":     keyPath,
 				"forward_port": fmt.Sprintf("%d", port),
 			},
+		})
+	}
+	return candidates
+}
+
+// scanSSHDeepCLIs probes SSH hosts for known CLI tools (claude, codex, etc.).
+func scanSSHDeepCLIs() []Candidate {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+
+	sshDir := filepath.Join(home, ".ssh")
+	keys := findSSHKeys(sshDir)
+	if len(keys) == 0 {
+		return nil
+	}
+
+	hosts := parseSSHConfig(filepath.Join(sshDir, "config"))
+	var candidates []Candidate
+
+	for _, h := range hosts {
+		keyPath := h.keyPath
+		if keyPath == "" && len(keys) > 0 {
+			keyPath = keys[0]
+		}
+
+		sshUser := h.user
+		if sshUser == "" {
+			if u, err := user.Current(); err == nil {
+				sshUser = u.Username
+			}
+		}
+
+		port := 22
+		if h.port != "" {
+			if p, err := strconv.Atoi(h.port); err == nil {
+				port = p
+			}
+		}
+
+		found := probeSSHCLIs(h.name, h.hostname, sshUser, keyPath, port)
+		candidates = append(candidates, found...)
+	}
+	return candidates
+}
+
+// probeSSHCLIs connects to an SSH host and checks for known CLI tools.
+func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Candidate {
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		slog.Debug("ssh cli scan: reading key", "host", hostAlias, "err", err)
+		return nil
+	}
+	signer, err := ssh.ParsePrivateKey(keyData)
+	if err != nil {
+		slog.Debug("ssh cli scan: parsing key", "host", hostAlias, "err", err)
+		return nil
+	}
+
+	sshCfg := &ssh.ClientConfig{
+		User:            sshUser,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         3 * time.Second,
+	}
+
+	addr := fmt.Sprintf("%s:%d", hostname, sshPort)
+	client, err := ssh.Dial("tcp", addr, sshCfg)
+	if err != nil {
+		slog.Debug("ssh cli scan: dial failed", "host", hostAlias, "addr", addr, "err", err)
+		return nil
+	}
+	defer client.Close()
+
+	var candidates []Candidate
+	for name, desc := range knownCLIs {
+		sess, err := client.NewSession()
+		if err != nil {
+			continue
+		}
+		output, err := sess.CombinedOutput("command -v " + name)
+		sess.Close()
+		if err != nil {
+			continue
+		}
+
+		remotePath := strings.TrimSpace(string(output))
+		if remotePath == "" {
+			continue
+		}
+
+		candidateName := hostAlias + "-" + name
+		cfg := map[string]string{
+			"host":     hostname,
+			"user":     sshUser,
+			"port":     fmt.Sprintf("%d", sshPort),
+			"key_path": keyPath,
+			"command":  remotePath,
+		}
+		if defaultArgs, ok := knownCLIArgs[name]; ok {
+			cfg["args"] = defaultArgs
+		}
+
+		candidates = append(candidates, Candidate{
+			Name:        candidateName,
+			Description: desc + " on " + hostAlias,
+			Transport:   "ssh-exec",
+			Source:      "ssh-cli",
+			Verified:    true,
+			Config:      cfg,
 		})
 	}
 	return candidates

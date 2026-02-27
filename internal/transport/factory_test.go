@@ -60,6 +60,14 @@ func TestFactory(t *testing.T) {
 			wantType: "STDIOTransport",
 		},
 		{
+			name: "ssh-exec type returns SSHExec",
+			url:  "ssh-exec://arch/claude",
+			tc: &models.TransportConfig{Type: "ssh-exec", Config: map[string]string{
+				"host": "h", "user": "u", "key_path": "/k", "command": "claude",
+			}},
+			wantType: "SSHExecTransport",
+		},
+		{
 			name:      "unknown type returns error",
 			url:       "http://localhost:8080",
 			tc:        &models.TransportConfig{Type: "pigeons"},
@@ -105,6 +113,8 @@ func typeName(v any) string {
 		return "DockerTransport"
 	case *STDIOTransport:
 		return "STDIOTransport"
+	case *SSHExecTransport:
+		return "SSHExecTransport"
 	default:
 		return fmt.Sprintf("unknown(%T)", v)
 	}

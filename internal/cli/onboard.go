@@ -22,7 +22,7 @@ func Onboard(registryPath string, in io.Reader, out io.Writer) error {
 
 	description := prompt(r, out, "Description (optional)", "")
 
-	transportType := promptChoice(r, out, "Transport", []string{"http", "ssh", "docker", "stdio"}, "http")
+	transportType := promptChoice(r, out, "Transport", []string{"http", "ssh", "ssh-exec", "docker", "stdio"}, "http")
 
 	var url string
 	var tc *models.TransportConfig
@@ -80,6 +80,40 @@ func Onboard(registryPath string, in io.Reader, out io.Writer) error {
 				"network":     network,
 				"agent_port":  agentPort,
 				"socket_path": socketPath,
+			},
+		}
+
+	case "ssh-exec":
+		fmt.Fprintln(out, "\n  SSH Remote CLI Configuration:")
+		host := prompt(r, out, "  Host", "")
+		if host == "" {
+			return fmt.Errorf("host is required for SSH exec transport")
+		}
+
+		defaultUser := "claude"
+		if u, err := user.Current(); err == nil {
+			defaultUser = u.Username
+		}
+		sshUser := prompt(r, out, "  User", defaultUser)
+		port := prompt(r, out, "  Port", "22")
+		keyPath := prompt(r, out, "  SSH key path", "~/.ssh/id_rsa")
+		command := prompt(r, out, "  Remote command", "claude")
+		defaultArgs := ""
+		if a, ok := knownCLIArgs[command]; ok {
+			defaultArgs = a
+		}
+		args := prompt(r, out, "  Args (space-separated)", defaultArgs)
+
+		url = fmt.Sprintf("ssh-exec://%s/%s", host, command)
+		tc = &models.TransportConfig{
+			Type: "ssh-exec",
+			Config: map[string]string{
+				"host":     host,
+				"user":     sshUser,
+				"port":     port,
+				"key_path": keyPath,
+				"command":  command,
+				"args":     args,
 			},
 		}
 

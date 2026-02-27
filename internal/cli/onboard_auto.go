@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -56,6 +57,10 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 	}
 	if len(a2aCandidates) > 0 {
 		fmt.Fprintf(out, "  %s✓%s Found %d A2A agents: %s\n", green, reset, len(a2aCandidates), candidateNames(a2aCandidates))
+	}
+	sshCLICandidates := filterBySource(candidates, "ssh-cli")
+	if len(sshCLICandidates) > 0 {
+		fmt.Fprintf(out, "  %s✓%s Found %d remote CLI tools via SSH: %s\n", green, reset, len(sshCLICandidates), candidateNames(sshCLICandidates))
 	}
 
 	if len(candidates) == 0 {
@@ -178,6 +183,14 @@ func candidateTransportDesc(c Candidate) string {
 			return fmt.Sprintf("%sSSH → %s@%s%s", dim, user, host, reset)
 		}
 		return fmt.Sprintf("%sSSH → %s%s", dim, host, reset)
+	case "ssh-exec":
+		host := c.Config["host"]
+		user := c.Config["user"]
+		cmd := filepath.Base(c.Config["command"])
+		if user != "" {
+			return fmt.Sprintf("%sSSH exec → %s@%s (%s)%s", dim, user, host, cmd, reset)
+		}
+		return fmt.Sprintf("%sSSH exec → %s (%s)%s", dim, host, cmd, reset)
 	case "docker":
 		container := c.Config["container"]
 		return fmt.Sprintf("%sDocker → container %s%s", dim, container, reset)
@@ -277,6 +290,20 @@ func candidateToCard(c Candidate) (models.AgentCard, bool) {
 			Type: "stdio",
 			Config: map[string]string{
 				"command": c.Config["command"],
+			},
+		}
+
+	case "ssh-exec":
+		card.URL = fmt.Sprintf("ssh-exec://%s/%s", c.Config["host"], filepath.Base(c.Config["command"]))
+		card.Transport = &models.TransportConfig{
+			Type: "ssh-exec",
+			Config: map[string]string{
+				"host":     c.Config["host"],
+				"user":     c.Config["user"],
+				"port":     c.Config["port"],
+				"key_path": c.Config["key_path"],
+				"command":  c.Config["command"],
+				"args":     c.Config["args"],
 			},
 		}
 	}

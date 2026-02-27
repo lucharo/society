@@ -45,6 +45,22 @@ func New(agentURL string, tc *models.TransportConfig) (Transport, error) {
 		}
 		return NewSTDIO(cfg)
 
+	case "ssh-exec":
+		args := configString(tc.Config, "args", "")
+		var argList []string
+		if args != "" {
+			argList = strings.Fields(args)
+		}
+		cfg := SSHExecConfig{
+			Host:    configString(tc.Config, "host", ""),
+			User:    configString(tc.Config, "user", ""),
+			KeyPath: configString(tc.Config, "key_path", ""),
+			Port:    configInt(tc.Config, "port", 22),
+			Command: configString(tc.Config, "command", ""),
+			Args:    argList,
+		}
+		return NewSSHExec(cfg)
+
 	default:
 		return nil, fmt.Errorf("unknown transport type: %q", tc.Type)
 	}
