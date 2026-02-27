@@ -26,7 +26,7 @@ The `exec` handler is the most powerful — it lets you wrap any command-line to
 
 ## Architecture
 
-![Architecture: four layers — Interfaces (MCP Server for Claude Code/Cursor, CLI), Society Core (Registry, Client, Thread Manager), Transports (HTTP, SSH Tunnel, Docker Socket, STDIO Subprocess), and Agents (local, remote, containers, CLI tools)](../../../assets/architecture.png)
+![Architecture: four layers — Interfaces (MCP Server for Claude Code/Cursor, CLI for society send/ping), Society Core (Registry, Client, Thread Manager), Transports (HTTP, SSH Tunnel, Docker Socket, STDIO Subprocess), and Agents (local, remote via SSH, containers, CLI tools like ollama and claude)](../../../assets/architecture.png)
 
 ### Request flow
 
