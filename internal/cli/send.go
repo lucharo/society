@@ -26,17 +26,22 @@ func Send(registryPath, name, message string, out io.Writer, threadID ...string)
 		return err
 	}
 
-	fmt.Fprintf(out, "\n  Thread %s\n", task.ID)
-	fmt.Fprintf(out, "  Status: %s\n", task.Status.State)
-	if task.Status.Message != "" {
-		fmt.Fprintf(out, "  Error: %s\n", task.Status.Message)
-	}
+	// Print response
 	for _, a := range task.Artifacts {
 		for _, p := range a.Parts {
 			if p.Type == "text" {
-				fmt.Fprintf(out, "  %s\n", strings.TrimSpace(p.Text))
+				fmt.Fprintln(out, strings.TrimSpace(p.Text))
 			}
 		}
 	}
+
+	// Print thread/status info in dim
+	if task.Status.State == "failed" {
+		fmt.Fprintf(out, "\n%s✗ %s%s\n", "\033[31m", task.Status.Message, reset)
+	}
+	if task.ID != "" {
+		fmt.Fprintf(out, "\n%sthread: %s%s\n", dim, task.ID, reset)
+	}
+
 	return nil
 }

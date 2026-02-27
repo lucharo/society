@@ -26,7 +26,7 @@ func Ping(registryPath, name string, out io.Writer) error {
 	if card.Transport != nil {
 		transport = card.Transport.Type
 	}
-	fmt.Fprintf(out, "\n  Connecting via %s...\n", transport)
+	fmt.Fprintf(out, "\n  Connecting to %s%s%s via %s...\n", bold, name, reset, transport)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -37,7 +37,7 @@ func Ping(registryPath, name string, out io.Writer) error {
 	elapsed := time.Since(start)
 
 	if err != nil {
-		fmt.Fprintf(out, "  ✗ Ping failed: %v\n", err)
+		fmt.Fprintf(out, "  %s✗ Failed%s: %v\n", "\033[31m", reset, err)
 		return err
 	}
 
@@ -46,10 +46,9 @@ func Ping(registryPath, name string, out io.Writer) error {
 		skillIDs = append(skillIDs, s.ID)
 	}
 
-	fmt.Fprintf(out, "  ✓ Agent %q responding\n", result.Name)
+	fmt.Fprintf(out, "  %s✓ %s is responding%s %s(%dms)%s\n", green, result.Name, reset, dim, elapsed.Milliseconds(), reset)
 	if len(skillIDs) > 0 {
-		fmt.Fprintf(out, "  ✓ Skills: %s\n", strings.Join(skillIDs, ", "))
+		fmt.Fprintf(out, "  Skills: %s\n", strings.Join(skillIDs, ", "))
 	}
-	fmt.Fprintf(out, "  Latency: %dms\n", elapsed.Milliseconds())
 	return nil
 }

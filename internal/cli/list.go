@@ -16,12 +16,13 @@ func List(registryPath string, out io.Writer) error {
 
 	agents := reg.List()
 	if len(agents) == 0 {
-		fmt.Fprintln(out, "  No agents registered")
+		fmt.Fprintf(out, "\nNo agents registered. Run %ssociety onboard%s to get started.\n", bold, reset)
 		return nil
 	}
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "  %-12s %-12s %-30s %s\n", "NAME", "TRANSPORT", "ENDPOINT", "SKILLS")
+	fmt.Fprintf(out, "  %s%-14s %-10s %-34s %s%s\n", bold, "NAME", "TRANSPORT", "ENDPOINT", "SKILLS", reset)
+	fmt.Fprintf(out, "  %-14s %-10s %-34s %s\n", "────", "─────────", "────────", "──────")
 
 	for _, a := range agents {
 		transport := "http"
@@ -31,18 +32,18 @@ func List(registryPath string, out io.Writer) error {
 			switch transport {
 			case "ssh":
 				cfg := a.Transport.Config
-				endpoint = fmt.Sprintf("ssh://%s@%s:%s→:%s",
+				endpoint = fmt.Sprintf("%s@%s:%s → :%s",
 					cfg["user"], cfg["host"], cfg["port"], cfg["forward_port"])
 			case "docker":
 				cfg := a.Transport.Config
-				endpoint = fmt.Sprintf("docker://%s:%s", cfg["container"], cfg["agent_port"])
+				endpoint = fmt.Sprintf("%s:%s", cfg["container"], cfg["agent_port"])
 			case "stdio":
 				cfg := a.Transport.Config
 				cmd := cfg["command"]
 				if args := cfg["args"]; args != "" {
 					cmd += " " + args
 				}
-				endpoint = fmt.Sprintf("stdio://%s", cmd)
+				endpoint = cmd
 			}
 		}
 
@@ -51,11 +52,11 @@ func List(registryPath string, out io.Writer) error {
 			skillIDs = append(skillIDs, s.ID)
 		}
 
-		fmt.Fprintf(out, "  %-12s %-12s %-30s %s\n",
-			a.Name, transport, truncate(endpoint, 30), strings.Join(skillIDs, ", "))
+		fmt.Fprintf(out, "  %-14s %s%-10s%s %-34s %s\n",
+			a.Name, dim, transport, reset, truncate(endpoint, 34), strings.Join(skillIDs, ", "))
 	}
 
-	fmt.Fprintf(out, "\n  %d agents registered\n", len(agents))
+	fmt.Fprintf(out, "\n  %s%d agents registered%s\n", dim, len(agents), reset)
 	return nil
 }
 

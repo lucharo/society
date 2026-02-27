@@ -176,6 +176,9 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "help", "-h", "--help":
+		printUsage()
+
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		printUsage()
