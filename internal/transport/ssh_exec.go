@@ -121,6 +121,9 @@ func WithSSHExecDialer(d SSHExecDialer) func(*SSHExecTransport) {
 }
 
 func (t *SSHExecTransport) Open(ctx context.Context) error {
+	if t.client != nil {
+		t.client.Close()
+	}
 	keyData, err := os.ReadFile(t.config.KeyPath)
 	if err != nil {
 		return fmt.Errorf("ssh-exec: reading key: %w", err)
@@ -167,9 +170,11 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 		}
 	}
 
-	// Build command string
-	cmdParts := []string{t.config.Command}
-	cmdParts = append(cmdParts, t.config.Args...)
+	// Build command string — escape all args for safe shell interpolation
+	cmdParts := []string{shellEscape(t.config.Command)}
+	for _, a := range t.config.Args {
+		cmdParts = append(cmdParts, shellEscape(a))
+	}
 	cmdParts = append(cmdParts, shellEscape(userText))
 	cmdStr := strings.Join(cmdParts, " ")
 
@@ -180,9 +185,10 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 	}
 	defer sess.Close()
 
+	const maxOutput = 10 << 20 // 10 MB
 	var stdout, stderr bytes.Buffer
-	sess.SetStdout(&stdout)
-	sess.SetStderr(&stderr)
+	sess.SetStdout(&limitedWriter{w: &stdout, n: maxOutput})
+	sess.SetStderr(&limitedWriter{w: &stderr, n: maxOutput})
 
 	// Run with context cancellation
 	done := make(chan error, 1)
@@ -213,6 +219,24 @@ func (t *SSHExecTransport) Close() error {
 		return t.client.Close()
 	}
 	return nil
+}
+
+// limitedWriter wraps a writer and silently discards bytes beyond a limit.
+type limitedWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (lw *limitedWriter) Write(p []byte) (int, error) {
+	if lw.n <= 0 {
+		return len(p), nil // discard
+	}
+	if int64(len(p)) > lw.n {
+		p = p[:lw.n]
+	}
+	n, err := lw.w.Write(p)
+	lw.n -= int64(n)
+	return n, err
 }
 
 // shellEscape wraps a string in single quotes for safe shell interpolation.

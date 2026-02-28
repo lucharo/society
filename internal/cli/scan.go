@@ -754,6 +754,7 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 		if err != nil {
 			continue
 		}
+		// name comes from the hardcoded knownCLIs map — safe for shell use.
 		output, err := sess.CombinedOutput("command -v " + name)
 		sess.Close()
 		if err != nil {
@@ -781,8 +782,8 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 			Name:        candidateName,
 			Description: desc + " on " + hostAlias,
 			Transport:   "ssh-exec",
-			Source:      "ssh-cli",
-			Verified:    true,
+			Source:   "ssh-cli",
+			Verified: false, // binary exists but not confirmed as live agent
 			Config:      cfg,
 		})
 	}
