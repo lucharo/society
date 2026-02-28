@@ -157,13 +157,16 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 		}
 	}
 
-	// Build command string — escape all args for safe shell interpolation
+	// Build command string — escape all args for safe shell interpolation.
+	// Wrap in "bash -l -c '...'" so the remote login profile is loaded
+	// (sets up PATH, e.g. /opt/homebrew/bin on macOS).
 	cmdParts := []string{shellEscape(t.config.Command)}
 	for _, a := range t.config.Args {
 		cmdParts = append(cmdParts, shellEscape(a))
 	}
 	cmdParts = append(cmdParts, shellEscape(userText))
-	cmdStr := strings.Join(cmdParts, " ")
+	innerCmd := strings.Join(cmdParts, " ")
+	cmdStr := "bash -l -c " + shellEscape(innerCmd)
 
 	// Create session and run
 	sess, err := t.client.NewSession()

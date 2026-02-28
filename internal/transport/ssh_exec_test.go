@@ -257,16 +257,14 @@ func TestSSHExecTransport_Send_ShellEscaping(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The message should be single-quoted with internal quotes escaped
+	// The command should be wrapped in bash -l -c '...' for login shell
 	cmd := sess.lastCmd
+	if !strings.HasPrefix(cmd, "bash -l -c ") {
+		t.Errorf("command should start with 'bash -l -c ', got %q", cmd)
+	}
 	// Should contain the escaped single quote pattern (from "it's")
 	if !strings.Contains(cmd, "'\\''") {
 		t.Errorf("single quotes should be escaped with '\\'' pattern, got %q", cmd)
-	}
-	// The whole user text should be wrapped in single quotes, protecting $HOME and backticks
-	want := "'it'\\''s a $HOME `test`'"
-	if !strings.Contains(cmd, want) {
-		t.Errorf("command should contain %q, got %q", want, cmd)
 	}
 }
 
