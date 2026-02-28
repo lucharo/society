@@ -223,14 +223,16 @@ func (s *Server) handleToolsCall(ctx context.Context, id json.RawMessage, params
 	var text string
 	var traceText string
 	for _, a := range task.Artifacts {
-		if a.Name == "trace" && args.Trace {
-			for _, p := range a.Parts {
-				if p.Type == "data" && p.Data != nil {
-					raw, _ := json.Marshal(p.Data)
-					traceText = cliparse.FormatTrace(raw, cliparse.PlainStyle())
+		if a.Name == "trace" {
+			if args.Trace {
+				for _, p := range a.Parts {
+					if p.Type == "data" && p.Data != nil {
+						raw, _ := json.Marshal(p.Data)
+						traceText = cliparse.FormatTrace(raw, cliparse.PlainStyle())
+					}
 				}
 			}
-			continue
+			continue // always skip trace artifact from main text
 		}
 		for _, p := range a.Parts {
 			if p.Type == "text" {
