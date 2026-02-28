@@ -349,21 +349,47 @@ func TestLimitedWriter(t *testing.T) {
 
 func TestParseCliResponse(t *testing.T) {
 	tests := []struct {
-		name   string
-		stdout string
-		want   string
+		name        string
+		stdout      string
+		wantResult  string
+		wantVerbose bool
 	}{
-		{"claude json", `{"result": "Hello!"}`, "Hello!"},
-		{"plain text", "Just text", "Just text"},
-		{"empty result", `{"result": ""}`, `{"result": ""}`},
-		{"whitespace", "  trimmed  ", "trimmed"},
+		{"claude json", `{"result": "Hello!"}`, "Hello!", false},
+		{"plain text", "Just text", "Just text", false},
+		{"empty result", `{"result": ""}`, `{"result": ""}`, false},
+		{"whitespace", "  trimmed  ", "trimmed", false},
+		{
+			"verbose array",
+			`[{"type":"system","subtype":"init","tools":["Bash","Read"]},{"type":"assistant","message":{"content":[{"type":"text","text":"pong"}]}},{"type":"result","result":"pong","cost_usd":0.01}]`,
+			"pong",
+			true,
+		},
+		{
+			"verbose filters init",
+			`[{"type":"system","subtype":"init","tools":["a","b","c"]},{"type":"result","result":"done","duration_ms":500}]`,
+			"done",
+			true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := parseCliResponse(tt.stdout)
-			if got != tt.want {
-				t.Errorf("parseCliResponse(%q) = %q, want %q", tt.stdout, got, tt.want)
+			if got.Result != tt.wantResult {
+				t.Errorf("parseCliResponse(%q).Result = %q, want %q", tt.stdout, got.Result, tt.wantResult)
+			}
+			if tt.wantVerbose && got.Verbose == nil {
+				t.Errorf("parseCliResponse(%q).Verbose = nil, want non-nil", tt.stdout)
+			}
+			if !tt.wantVerbose && got.Verbose != nil {
+				t.Errorf("parseCliResponse(%q).Verbose = %s, want nil", tt.stdout, got.Verbose)
+			}
+			// Verify system/init entries are filtered from verbose output
+			if got.Verbose != nil {
+				s := string(got.Verbose)
+				if strings.Contains(s, `"type":"system"`) {
+					t.Errorf("verbose output should not contain system entries, got %s", s)
+				}
 			}
 		})
 	}

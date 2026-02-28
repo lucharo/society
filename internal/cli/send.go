@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/luischavesdev/society/internal/registry"
 )
 
-func Send(registryPath, name, message string, out io.Writer, threadID ...string) error {
+func Send(registryPath, name, message string, out io.Writer, showTrace bool, threadID ...string) error {
 	reg, err := registry.Load(registryPath)
 	if err != nil {
 		return fmt.Errorf("loading registry: %w", err)
@@ -35,6 +36,22 @@ func Send(registryPath, name, message string, out io.Writer, threadID ...string)
 		for _, p := range a.Parts {
 			if p.Type == "text" {
 				fmt.Fprintln(out, strings.TrimSpace(p.Text))
+			}
+		}
+	}
+
+	// Print trace data if requested
+	if showTrace {
+		for _, a := range task.Artifacts {
+			if a.Name == "trace" {
+				for _, p := range a.Parts {
+					if p.Type == "data" && p.Data != nil {
+						raw, err := json.MarshalIndent(p.Data, "", "  ")
+						if err == nil {
+							fmt.Fprintf(out, "\n%s--- trace ---%s\n%s\n", dim, reset, raw)
+						}
+					}
+				}
 			}
 		}
 	}

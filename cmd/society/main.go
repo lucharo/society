@@ -103,15 +103,16 @@ func main() {
 	case "send":
 		fs := flag.NewFlagSet("send", flag.ExitOnError)
 		threadFlag := fs.String("thread", "", "Continue an existing thread")
+		traceFlag := fs.Bool("trace", false, "Show verbose trace data (tool calls, usage, cost)")
 		fs.Parse(os.Args[2:])
 
 		sendArgs := fs.Args()
 		if len(sendArgs) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: society send <name> <message> [--thread <id>]")
+			fmt.Fprintln(os.Stderr, "usage: society send <name> <message> [--thread <id>] [--trace]")
 			os.Exit(1)
 		}
 		message := strings.Join(sendArgs[1:], " ")
-		err = cli.Send(registryPath, sendArgs[0], message, os.Stdout, *threadFlag)
+		err = cli.Send(registryPath, sendArgs[0], message, os.Stdout, *traceFlag, *threadFlag)
 
 	case "export":
 		fs := flag.NewFlagSet("export", flag.ExitOnError)

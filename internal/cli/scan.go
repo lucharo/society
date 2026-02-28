@@ -61,7 +61,7 @@ var knownCLIs = map[string]string{
 // tool gets its safe-but-autonomous flag. Users can override args in the
 // registry after onboarding if needed.
 var knownCLIArgs = map[string]string{
-	"claude":   "-p --output-format json --dangerously-skip-permissions",
+	"claude":   "-p --verbose --output-format json --dangerously-skip-permissions",
 	"codex":    "--quiet --full-auto",
 	"aider":    "--yes-always",
 	"droid":    "--auto high",
