@@ -36,6 +36,14 @@ type Candidate struct {
 	Verified    bool // true = confirmed live A2A agent via probe
 }
 
+// commonCLIPaths lists directories where CLI tools are commonly installed
+// but may not be in the SSH session's PATH (non-login shells often miss these).
+var commonCLIPaths = []string{
+	"~/.local/bin",
+	"/usr/local/bin",
+	"/opt/homebrew/bin",
+}
+
 // knownCLIs maps CLI tool names to descriptions.
 var knownCLIs = map[string]string{
 	"claude":   "Claude Code agent",
@@ -84,6 +92,9 @@ func ScanAll(opts ScanOptions) []Candidate {
 		all = append(all, scanSSH()...)
 	}
 
+	progress("Scanning Tailscale peers...")
+	all = append(all, scanTailscale()...)
+
 	progress("Scanning local A2A ports...")
 	all = append(all, scanA2A()...)
 
@@ -94,6 +105,10 @@ func ScanAll(opts ScanOptions) []Candidate {
 		deep = append(deep, scanSSHDeep()...)
 		progress("Deep scan: probing SSH hosts for CLI tools...")
 		deep = append(deep, scanSSHDeepCLIs()...)
+		progress("Deep scan: probing Tailscale peers for A2A agents (HTTP)...")
+		deep = append(deep, scanTailscaleDeepHTTP()...)
+		progress("Deep scan: probing Tailscale peers for CLI tools (SSH)...")
+		deep = append(deep, scanTailscaleDeepCLIs()...)
 		all = dedup(all, deep)
 	}
 	return all
@@ -101,18 +116,25 @@ func ScanAll(opts ScanOptions) []Candidate {
 
 // dedup merges deep (verified) candidates into the shallow list.
 // Deep candidates replace shallow ones with matching transport and host/container.
+// Verified HTTP candidates also replace unverified SSH candidates for the same host
+// (e.g., when a Tailscale peer has a live A2A agent reachable directly over HTTP,
+// the SSH tunnel candidate becomes redundant).
 func dedup(shallow, deep []Candidate) []Candidate {
 	replaced := make(map[int]bool)
 	for _, d := range deep {
 		for i, s := range shallow {
-			if s.Transport != d.Transport {
-				continue
-			}
 			match := false
-			switch s.Transport {
-			case "docker":
-				match = s.Config["container"] == d.Config["container"]
-			case "ssh":
+			if s.Transport == d.Transport {
+				switch s.Transport {
+				case "docker":
+					match = s.Config["container"] == d.Config["container"]
+				case "ssh":
+					match = s.Config["host"] == d.Config["host"]
+				case "ssh-exec":
+					match = s.Config["host"] == d.Config["host"] && s.Config["command"] == d.Config["command"]
+				}
+			} else if d.Verified && d.Transport == "http" && s.Transport == "ssh" && !s.Verified {
+				// A verified HTTP agent replaces an unverified SSH candidate for the same host
 				match = s.Config["host"] == d.Config["host"]
 			}
 			if match {
@@ -723,6 +745,8 @@ func scanSSHDeepCLIs() []Candidate {
 }
 
 // probeSSHCLIs connects to an SSH host and checks for known CLI tools.
+// It first tries `command -v` (which only finds CLIs in PATH), then falls
+// back to checking common install directories for any CLIs not found.
 func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Candidate {
 	sshCfg, err := transport.BuildSSHClientConfig(sshUser, keyPath)
 	if err != nil {
@@ -742,18 +766,42 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 
 	var candidates []Candidate
 	for name, desc := range knownCLIs {
+		remotePath := ""
+
+		// First try command -v (finds CLIs in PATH).
+		// name comes from the hardcoded knownCLIs map — safe for shell use.
 		sess, err := client.NewSession()
 		if err != nil {
 			continue
 		}
-		// name comes from the hardcoded knownCLIs map — safe for shell use.
 		output, err := sess.CombinedOutput("command -v " + name)
 		sess.Close()
-		if err != nil {
-			continue
+		if err == nil {
+			remotePath = strings.TrimSpace(string(output))
 		}
 
-		remotePath := strings.TrimSpace(string(output))
+		// If command -v missed it, check common install directories.
+		// Uses eval to expand ~ and realpath to get an absolute path.
+		if remotePath == "" {
+			for _, dir := range commonCLIPaths {
+				candidate := dir + "/" + name
+				sess2, err := client.NewSession()
+				if err != nil {
+					continue
+				}
+				// Expand ~, check executable, print absolute path.
+				cmd := fmt.Sprintf("eval p=%s && test -x \"$p\" && echo \"$p\"", candidate)
+				out, err := sess2.CombinedOutput(cmd)
+				sess2.Close()
+				if err == nil {
+					if resolved := strings.TrimSpace(string(out)); resolved != "" {
+						remotePath = resolved
+						break
+					}
+				}
+			}
+		}
+
 		if remotePath == "" {
 			continue
 		}
@@ -774,10 +822,245 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 			Name:        candidateName,
 			Description: desc + " on " + hostAlias,
 			Transport:   "ssh-exec",
-			Source:   "ssh-cli",
-			Verified: false, // binary exists but not confirmed as live agent
+			Source:      "ssh-cli",
+			Verified:    false, // binary exists but not confirmed as live agent
 			Config:      cfg,
 		})
+	}
+	return candidates
+}
+
+// tailscalePeer holds information about a Tailscale peer parsed from `tailscale status --json`.
+type tailscalePeer struct {
+	hostName     string   // e.g. "MacBookPro"
+	dnsName      string   // e.g. "macbookpro.tailacf9ef.ts.net."
+	os           string   // e.g. "macOS", "linux", "iOS"
+	tailscaleIPs []string // e.g. ["100.65.152.84", "fd7a:..."]
+	online       bool
+}
+
+// sshCapableOS returns true if the OS is likely to support SSH connections.
+func sshCapableOS(os string) bool {
+	switch strings.ToLower(os) {
+	case "linux", "macos", "windows", "freebsd", "openbsd":
+		return true
+	default:
+		return false
+	}
+}
+
+// parseTailscaleStatus runs `tailscale status --json` and returns online,
+// SSH-capable peers (excluding self and mobile devices).
+func parseTailscaleStatus() []tailscalePeer {
+	out, err := exec.Command("tailscale", "status", "--json").Output()
+	if err != nil {
+		slog.Debug("tailscale: status failed", "err", err)
+		return nil
+	}
+
+	var status struct {
+		Self struct {
+			HostName string `json:"HostName"`
+		} `json:"Self"`
+		Peer map[string]struct {
+			HostName     string   `json:"HostName"`
+			DNSName      string   `json:"DNSName"`
+			OS           string   `json:"OS"`
+			TailscaleIPs []string `json:"TailscaleIPs"`
+			Online       bool     `json:"Online"`
+		} `json:"Peer"`
+	}
+	if err := json.Unmarshal(out, &status); err != nil {
+		slog.Debug("tailscale: parse failed", "err", err)
+		return nil
+	}
+
+	var peers []tailscalePeer
+	for _, p := range status.Peer {
+		if !p.Online || !sshCapableOS(p.OS) {
+			continue
+		}
+		peers = append(peers, tailscalePeer{
+			hostName:     p.HostName,
+			dnsName:      p.DNSName,
+			os:           p.OS,
+			tailscaleIPs: p.TailscaleIPs,
+		})
+	}
+	return peers
+}
+
+// tailscaleHostname returns the lowercase hostname for use as an SSH target.
+// Tailscale DNS names work as hostnames when Tailscale is running.
+func tailscaleHostname(p tailscalePeer) string {
+	return strings.ToLower(p.hostName)
+}
+
+// scanTailscale discovers Tailscale peers and returns them as candidates.
+// In the regular (non-deep) scan these are SSH tunnel candidates.
+// Peers that already appear in ~/.ssh/config are skipped (scanSSH handles those).
+func scanTailscale() []Candidate {
+	peers := parseTailscaleStatus()
+	if len(peers) == 0 {
+		return nil
+	}
+
+	home, _ := os.UserHomeDir()
+
+	// Load SSH config hosts to skip duplicates
+	var sshHostnames map[string]bool
+	if home != "" {
+		sshConfigHosts := parseSSHConfig(filepath.Join(home, ".ssh", "config"))
+		sshHostnames = make(map[string]bool)
+		for _, h := range sshConfigHosts {
+			sshHostnames[strings.ToLower(h.name)] = true
+			sshHostnames[strings.ToLower(h.hostname)] = true
+		}
+	}
+
+	var keys []string
+	if home != "" {
+		keys = findSSHKeys(filepath.Join(home, ".ssh"))
+	}
+
+	currentUser := ""
+	if u, err := user.Current(); err == nil {
+		currentUser = u.Username
+	}
+
+	var candidates []Candidate
+	for _, p := range peers {
+		hostname := tailscaleHostname(p)
+		if sshHostnames[hostname] {
+			continue // already covered by SSH config
+		}
+
+		// With SSH keys available, offer as SSH tunnel candidate
+		if len(keys) > 0 {
+			candidates = append(candidates, Candidate{
+				Name:        hostname,
+				Description: fmt.Sprintf("Tailscale peer (%s)", p.os),
+				Transport:   "ssh",
+				Source:      "tailscale",
+				Config: map[string]string{
+					"host":         hostname,
+					"user":         currentUser,
+					"port":         "22",
+					"key_path":     keys[0],
+					"forward_port": "8080",
+				},
+			})
+		}
+	}
+	return candidates
+}
+
+// tailscaleSSHHosts returns sshHost entries for all online, SSH-capable Tailscale
+// peers, including those that also appear in ~/.ssh/config (for deep probing,
+// we want to probe all reachable hosts regardless of overlap).
+func tailscaleSSHHosts() []sshHost {
+	peers := parseTailscaleStatus()
+	if len(peers) == 0 {
+		return nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+
+	keys := findSSHKeys(filepath.Join(home, ".ssh"))
+	if len(keys) == 0 {
+		return nil
+	}
+
+	// Load SSH config to use its settings (user, key, port) when available
+	sshConfigHosts := parseSSHConfig(filepath.Join(home, ".ssh", "config"))
+	sshConfigByName := make(map[string]sshHost)
+	for _, h := range sshConfigHosts {
+		sshConfigByName[strings.ToLower(h.name)] = h
+		sshConfigByName[strings.ToLower(h.hostname)] = h
+	}
+
+	currentUser := ""
+	if u, err := user.Current(); err == nil {
+		currentUser = u.Username
+	}
+
+	var hosts []sshHost
+	for _, p := range peers {
+		hostname := tailscaleHostname(p)
+
+		// If this peer is already in SSH config, skip — scanSSHDeep/scanSSHDeepCLIs
+		// already covers it. We only want Tailscale-only peers here.
+		if _, ok := sshConfigByName[hostname]; ok {
+			continue
+		}
+
+		hosts = append(hosts, sshHost{
+			name:     hostname,
+			hostname: hostname,
+			user:     currentUser,
+			port:     "22",
+			keyPath:  keys[0],
+		})
+	}
+	return hosts
+}
+
+// scanTailscaleDeepHTTP probes all Tailscale peers for live A2A agents via direct
+// HTTP — no SSH tunnel needed since peers are directly reachable over Tailscale.
+func scanTailscaleDeepHTTP() []Candidate {
+	peers := parseTailscaleStatus()
+	if len(peers) == 0 {
+		return nil
+	}
+
+	probeClient := &http.Client{Timeout: 2 * time.Second}
+	var candidates []Candidate
+
+	for _, p := range peers {
+		hostname := tailscaleHostname(p)
+		for _, port := range deepProbePorts {
+			name, desc, ok := probeA2AEndpoint(probeClient, hostname, port)
+			if !ok {
+				continue
+			}
+			if name == "" {
+				name = fmt.Sprintf("%s-agent-%d", hostname, port)
+			}
+			if desc == "" {
+				desc = fmt.Sprintf("A2A agent on %s (Tailscale)", hostname)
+			}
+			candidates = append(candidates, Candidate{
+				Name:        name,
+				Description: desc,
+				Transport:   "http",
+				Source:      "tailscale",
+				Verified:    true,
+				Config: map[string]string{
+					"url":  fmt.Sprintf("http://%s:%d", hostname, port),
+					"host": hostname,
+					"port": fmt.Sprintf("%d", port),
+				},
+			})
+		}
+	}
+	return candidates
+}
+
+// scanTailscaleDeepCLIs probes Tailscale peers (not in SSH config) for CLI tools.
+func scanTailscaleDeepCLIs() []Candidate {
+	var candidates []Candidate
+	for _, h := range tailscaleSSHHosts() {
+		port := 22
+		if h.port != "" {
+			if p, err := strconv.Atoi(h.port); err == nil {
+				port = p
+			}
+		}
+		found := probeSSHCLIs(h.name, h.hostname, h.user, h.keyPath, port)
+		candidates = append(candidates, found...)
 	}
 	return candidates
 }

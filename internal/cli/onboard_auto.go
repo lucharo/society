@@ -65,6 +65,10 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 	if len(sshCLICandidates) > 0 {
 		fmt.Fprintf(out, "  %s✓%s Found %d remote CLI tools via SSH: %s\n", green, reset, len(sshCLICandidates), candidateNames(sshCLICandidates))
 	}
+	tailscaleCandidates := filterBySource(candidates, "tailscale")
+	if len(tailscaleCandidates) > 0 {
+		fmt.Fprintf(out, "  %s✓%s Found %d Tailscale peers: %s\n", green, reset, len(tailscaleCandidates), candidateNames(tailscaleCandidates))
+	}
 
 	if len(candidates) == 0 {
 		fmt.Fprintf(out, "  No agents detected.\n\n")
