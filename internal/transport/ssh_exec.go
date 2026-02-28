@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/luischavesdev/society/internal/cliparse"
 	"github.com/luischavesdev/society/internal/models"
 	"golang.org/x/crypto/ssh"
 )
@@ -202,10 +203,10 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 		if errMsg == "" {
 			errMsg = err.Error()
 		}
-		return marshalTaskResponse(req.ID, req.Params.ID, models.TaskStateFailed, errMsg, cliOutput{})
+		return marshalTaskResponse(req.ID, req.Params.ID, models.TaskStateFailed, errMsg, cliparse.Output{})
 	}
 
-	output := parseCliResponse(stdout.String())
+	output := cliparse.Parse(stdout.String())
 	if stdoutLW.truncated {
 		output.Result += "\n\n[warning: output truncated at 10 MB]"
 	}
@@ -248,60 +249,8 @@ func shellEscape(s string) string {
 	return "'" + escaped + "'"
 }
 
-// cliOutput holds the parsed result from CLI output.
-type cliOutput struct {
-	Result  string          // extracted result text
-	Verbose json.RawMessage // filtered verbose events (nil if not verbose)
-}
-
-// parseCliResponse extracts text from CLI output, handling both plain
-// JSON ({"result":"..."}) and verbose array format ([{type:"system",...}, ...]).
-// For verbose output, system/init entries are filtered out and the remaining
-// events (tool calls, usage, cost) are preserved in Verbose.
-// Mirrors parseResponse in internal/agent/exec.go.
-func parseCliResponse(stdout string) cliOutput {
-	stdout = strings.TrimSpace(stdout)
-
-	// Try single-object format: {"result": "..."}
-	var claudeResp struct {
-		Result string `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &claudeResp); err == nil && claudeResp.Result != "" {
-		return cliOutput{Result: claudeResp.Result}
-	}
-
-	// Try verbose array format: [{type: "system", ...}, ...]
-	var events []json.RawMessage
-	if err := json.Unmarshal([]byte(stdout), &events); err == nil && len(events) > 0 {
-		var filtered []json.RawMessage
-		var result string
-		for _, ev := range events {
-			var entry struct {
-				Type   string `json:"type"`
-				Result string `json:"result"`
-			}
-			if json.Unmarshal(ev, &entry) != nil {
-				continue
-			}
-			if entry.Type == "system" {
-				continue
-			}
-			filtered = append(filtered, ev)
-			if entry.Type == "result" && entry.Result != "" {
-				result = entry.Result
-			}
-		}
-		if result != "" {
-			verbose, _ := json.Marshal(filtered)
-			return cliOutput{Result: result, Verbose: verbose}
-		}
-	}
-
-	return cliOutput{Result: stdout}
-}
-
 // marshalTaskResponse builds a JSON-RPC response containing a Task.
-func marshalTaskResponse(reqID any, taskID string, state models.TaskState, errMsg string, output cliOutput) ([]byte, error) {
+func marshalTaskResponse(reqID any, taskID string, state models.TaskState, errMsg string, output cliparse.Output) ([]byte, error) {
 	task := models.Task{
 		ID:     taskID,
 		Status: models.TaskStatus{State: state, Message: errMsg},
