@@ -72,9 +72,11 @@ func ScanAll(opts ScanOptions) []Candidate {
 	}
 
 	progress("Scanning SSH config...")
-	home, _ := os.UserHomeDir()
+	home, homeErr := os.UserHomeDir()
 	sshDir := filepath.Join(home, ".ssh")
-	if _, err := os.Stat(sshDir); err != nil {
+	if homeErr != nil {
+		progress("  (skipped: cannot determine home directory)")
+	} else if _, err := os.Stat(sshDir); err != nil {
 		progress("  (skipped: no ~/.ssh directory)")
 	} else if keys := findSSHKeys(sshDir); len(keys) == 0 {
 		progress("  (skipped: no SSH keys found in ~/.ssh)")
