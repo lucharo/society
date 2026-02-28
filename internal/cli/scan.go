@@ -93,7 +93,8 @@ func ScanAll(opts ScanOptions) []Candidate {
 	}
 
 	progress("Scanning Tailscale peers...")
-	all = append(all, scanTailscale()...)
+	tsPeers := parseTailscaleStatus()
+	all = append(all, scanTailscale(tsPeers)...)
 
 	progress("Scanning local A2A ports...")
 	all = append(all, scanA2A()...)
@@ -106,9 +107,9 @@ func ScanAll(opts ScanOptions) []Candidate {
 		progress("Deep scan: probing SSH hosts for CLI tools...")
 		deep = append(deep, scanSSHDeepCLIs()...)
 		progress("Deep scan: probing Tailscale peers for A2A agents (HTTP)...")
-		deep = append(deep, scanTailscaleDeepHTTP()...)
+		deep = append(deep, scanTailscaleDeepHTTP(tsPeers)...)
 		progress("Deep scan: probing Tailscale peers for CLI tools (SSH)...")
-		deep = append(deep, scanTailscaleDeepCLIs()...)
+		deep = append(deep, scanTailscaleDeepCLIs(tsPeers)...)
 		all = dedup(all, deep)
 	}
 	return all
@@ -781,16 +782,17 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 		}
 
 		// If command -v missed it, check common install directories.
-		// Uses eval to expand ~ and realpath to get an absolute path.
 		if remotePath == "" {
 			for _, dir := range commonCLIPaths {
-				candidate := dir + "/" + name
+				// Expand ~ to $HOME (avoids eval for safety).
+				expanded := strings.Replace(dir, "~", "$HOME", 1)
+				candidate := expanded + "/" + name
 				sess2, err := client.NewSession()
 				if err != nil {
 					continue
 				}
-				// Expand ~, check executable, print absolute path.
-				cmd := fmt.Sprintf("eval p=%s && test -x \"$p\" && echo \"$p\"", candidate)
+				// Check executable and print the resolved path.
+				cmd := fmt.Sprintf("p=\"%s\" && test -x \"$p\" && echo \"$p\"", candidate)
 				out, err := sess2.CombinedOutput(cmd)
 				sess2.Close()
 				if err == nil {
@@ -836,7 +838,6 @@ type tailscalePeer struct {
 	dnsName      string   // e.g. "macbookpro.tailacf9ef.ts.net."
 	os           string   // e.g. "macOS", "linux", "iOS"
 	tailscaleIPs []string // e.g. ["100.65.152.84", "fd7a:..."]
-	online       bool
 }
 
 // sshCapableOS returns true if the OS is likely to support SSH connections.
@@ -899,13 +900,15 @@ func tailscaleHostname(p tailscalePeer) string {
 // scanTailscale discovers Tailscale peers and returns them as candidates.
 // In the regular (non-deep) scan these are SSH tunnel candidates.
 // Peers that already appear in ~/.ssh/config are skipped (scanSSH handles those).
-func scanTailscale() []Candidate {
-	peers := parseTailscaleStatus()
+func scanTailscale(peers []tailscalePeer) []Candidate {
 	if len(peers) == 0 {
 		return nil
 	}
 
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		slog.Debug("tailscale scan: cannot determine home directory", "err", err)
+	}
 
 	// Load SSH config hosts to skip duplicates
 	var sshHostnames map[string]bool
@@ -955,11 +958,9 @@ func scanTailscale() []Candidate {
 	return candidates
 }
 
-// tailscaleSSHHosts returns sshHost entries for all online, SSH-capable Tailscale
-// peers, including those that also appear in ~/.ssh/config (for deep probing,
-// we want to probe all reachable hosts regardless of overlap).
-func tailscaleSSHHosts() []sshHost {
-	peers := parseTailscaleStatus()
+// tailscaleSSHHosts returns sshHost entries for Tailscale-only peers (not in SSH
+// config). These are used for deep probing via SSH.
+func tailscaleSSHHosts(peers []tailscalePeer) []sshHost {
 	if len(peers) == 0 {
 		return nil
 	}
@@ -1010,8 +1011,7 @@ func tailscaleSSHHosts() []sshHost {
 
 // scanTailscaleDeepHTTP probes all Tailscale peers for live A2A agents via direct
 // HTTP — no SSH tunnel needed since peers are directly reachable over Tailscale.
-func scanTailscaleDeepHTTP() []Candidate {
-	peers := parseTailscaleStatus()
+func scanTailscaleDeepHTTP(peers []tailscalePeer) []Candidate {
 	if len(peers) == 0 {
 		return nil
 	}
@@ -1050,9 +1050,9 @@ func scanTailscaleDeepHTTP() []Candidate {
 }
 
 // scanTailscaleDeepCLIs probes Tailscale peers (not in SSH config) for CLI tools.
-func scanTailscaleDeepCLIs() []Candidate {
+func scanTailscaleDeepCLIs(peers []tailscalePeer) []Candidate {
 	var candidates []Candidate
-	for _, h := range tailscaleSSHHosts() {
+	for _, h := range tailscaleSSHHosts(peers) {
 		port := 22
 		if h.port != "" {
 			if p, err := strconv.Atoi(h.port); err == nil {
