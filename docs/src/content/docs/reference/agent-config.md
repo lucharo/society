@@ -12,12 +12,14 @@ name: string          # Required. Unique agent name.
 description: string   # Optional. Human-readable description.
 port: integer         # Optional. HTTP listen port (1-65535).
 handler: string       # Required. One of: echo, greeter, exec.
+system_prompt: string # Optional. System prompt for agent identity/role.
 
 backend:              # Required when handler is "exec".
   command: string     # Required. Executable name or path.
   args: [string]      # Optional. Arguments prepended to each invocation.
   session_flag: string # Optional. Flag for session ID on first message.
   resume_flag: string  # Optional. Flag for session ID on follow-up messages.
+  system_prompt_flag: string # Optional. Flag to pass the system prompt.
   env: [string]       # Optional. Environment variables (KEY=VALUE format).
 
 skills:               # Optional. Capabilities advertised in the agent card.
@@ -125,6 +127,45 @@ skills:
   - id: summarize
     name: Summarize
 ```
+
+## System prompts
+
+The `system_prompt` field gives an agent identity and role context. The prompt is passed to the backend CLI via `system_prompt_flag`.
+
+```yaml
+name: code-reviewer
+port: 8005
+handler: exec
+system_prompt: "You are a senior code reviewer. Be concise and focus on bugs and security issues."
+backend:
+  command: claude
+  args: ["-p", "--output-format", "json"]
+  system_prompt_flag: "--system-prompt"
+```
+
+Known defaults for `system_prompt_flag` (used when the field is omitted):
+
+| CLI | Default flag |
+|-----|-------------|
+| `claude` | `--system-prompt` |
+| `happy` | `--system-prompt` |
+| `goose` | `--system` |
+
+If your CLI doesn't support system prompts, omit both fields.
+
+## Autonomous mode defaults
+
+When `society onboard --deep` detects CLI tools on remote hosts, it assigns default arguments so agents can run unattended (nobody is there to approve prompts). These defaults are set in the registry entry's `args` field:
+
+| CLI | Default args |
+|-----|-------------|
+| `claude` | `-p --output-format json --dangerously-skip-permissions` |
+| `codex` | `--quiet --full-auto` |
+| `aider` | `--yes-always` |
+| `droid` | `--auto high` |
+| `opencode` | `--quiet` |
+
+You can override these after onboarding by editing `~/.society/registry.json`.
 
 ## File location
 

@@ -80,11 +80,11 @@ type realProcess struct {
 	stderr io.ReadCloser
 }
 
-func (p *realProcess) Stdin() io.WriteCloser  { return p.stdin }
-func (p *realProcess) Stdout() io.ReadCloser  { return p.stdout }
-func (p *realProcess) Stderr() io.ReadCloser  { return p.stderr }
-func (p *realProcess) Wait() error            { return p.cmd.Wait() }
-func (p *realProcess) Kill() error            { return p.cmd.Process.Kill() }
+func (p *realProcess) Stdin() io.WriteCloser { return p.stdin }
+func (p *realProcess) Stdout() io.ReadCloser { return p.stdout }
+func (p *realProcess) Stderr() io.ReadCloser { return p.stderr }
+func (p *realProcess) Wait() error           { return p.cmd.Wait() }
+func (p *realProcess) Kill() error           { return p.cmd.Process.Kill() }
 
 func NewSTDIO(cfg STDIOConfig, opts ...func(*STDIOTransport)) (*STDIOTransport, error) {
 	if cfg.Command == "" {

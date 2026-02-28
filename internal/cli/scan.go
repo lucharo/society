@@ -294,7 +294,7 @@ func scanCLIs() []Candidate {
 			Name:        name,
 			Description: desc,
 			Transport:   "stdio",
-			Source:       "cli",
+			Source:      "cli",
 			Config: map[string]string{
 				"command": path,
 			},
@@ -369,7 +369,7 @@ func scanDocker() []Candidate {
 			Name:        name,
 			Description: fmt.Sprintf("Docker container (%s)", c.Image),
 			Transport:   "docker",
-			Source:       "docker",
+			Source:      "docker",
 			Config: map[string]string{
 				"container":   name,
 				"agent_port":  port,
@@ -426,7 +426,7 @@ func scanSSH() []Candidate {
 			Name:        h.name,
 			Description: fmt.Sprintf("SSH host %s", h.hostname),
 			Transport:   "ssh",
-			Source:       "ssh",
+			Source:      "ssh",
 			Config: map[string]string{
 				"host":         h.hostname,
 				"user":         sshUser,

@@ -49,12 +49,12 @@ func (m *mockSSHExecClient) Close() error {
 }
 
 type mockSSHExecSession struct {
-	stdout   string
-	stderr   string
-	exitErr  error
-	lastCmd  string
-	stdoutW  io.Writer
-	stderrW  io.Writer
+	stdout  string
+	stderr  string
+	exitErr error
+	lastCmd string
+	stdoutW io.Writer
+	stderrW io.Writer
 }
 
 func (m *mockSSHExecSession) Run(cmd string) error {
@@ -70,7 +70,7 @@ func (m *mockSSHExecSession) Run(cmd string) error {
 
 func (m *mockSSHExecSession) SetStdout(w io.Writer) { m.stdoutW = w }
 func (m *mockSSHExecSession) SetStderr(w io.Writer) { m.stderrW = w }
-func (m *mockSSHExecSession) Close() error           { return nil }
+func (m *mockSSHExecSession) Close() error          { return nil }
 
 func writeTestKeyFile(t *testing.T) string {
 	t.Helper()

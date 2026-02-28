@@ -125,6 +125,22 @@ backend:
   args: ["run", "llama3.2"]
 ```
 
+## System prompts
+
+Give an agent a role by setting `system_prompt`. The prompt is passed to the backend CLI automatically.
+
+```yaml
+name: reviewer
+port: 8005
+handler: exec
+system_prompt: "You are a code reviewer. Focus on bugs and security."
+backend:
+  command: claude
+  args: ["-p", "--output-format", "json"]
+```
+
+The flag used to pass the prompt is auto-detected for known CLIs (claude uses `--system-prompt`, goose uses `--system`). For other CLIs, set `backend.system_prompt_flag` explicitly. See [Agent Config Reference](/reference/agent-config/#system-prompts) for details.
+
 ## Running agents
 
 Single agent:

@@ -103,7 +103,7 @@ If the remote machine has CLI tools like `claude` or `codex` installed but you d
 society onboard --deep
 ```
 
-This scans all hosts from your `~/.ssh/config` and finds installed CLIs automatically.
+This scans all hosts from your `~/.ssh/config` and Tailscale peers, finds installed CLIs automatically, and detects live A2A agents. If multiple SSH config entries point to the same machine (e.g., different hostnames resolving to the same IP), they're grouped and you pick your preferred route.
 
 **Manual registration:**
 

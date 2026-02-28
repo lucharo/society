@@ -21,10 +21,18 @@ Auto-detect available agents and register them.
 
 ```bash
 society onboard            # auto-detect CLIs, Docker, SSH, A2A agents
+society onboard --deep     # also probe SSH/Docker hosts for live agents and CLIs
 society onboard --manual   # interactive wizard for manual setup
 ```
 
+| Flag | Description |
+|------|-------------|
+| `--deep` | Probe SSH hosts and Docker containers for live A2A agents and CLI tools |
+| `--manual` | Interactive wizard for manual setup |
+
 By default, scans for CLIs (claude, codex, ollama, etc.), Docker containers, SSH hosts, and A2A agents on local ports. Presents a numbered list and lets you select which to register.
+
+With `--deep`, additionally SSHes into each host from `~/.ssh/config` and Tailscale peers to probe for live A2A agents on common ports and detect installed CLI tools (claude, codex, aider, etc.). SSH hosts that resolve to the same IP are grouped and you pick a preferred route.
 
 Use `--manual` for the interactive wizard that prompts for name, description, transport type, and transport-specific config.
 

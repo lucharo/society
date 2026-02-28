@@ -266,8 +266,8 @@ func TestMerge_Multiple(t *testing.T) {
 
 	cards := []models.AgentCard{
 		makeCard("new", "http://new"),
-		makeCard("existing", "http://existing"),         // identical → skip
-		makeCard("conflict", "http://different"),        // conflict → overwrite
+		makeCard("existing", "http://existing"),  // identical → skip
+		makeCard("conflict", "http://different"), // conflict → overwrite
 	}
 
 	resolver := func(local, imported models.AgentCard) MergeAction {

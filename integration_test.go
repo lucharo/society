@@ -255,4 +255,3 @@ func TestFullFlow_Discover(t *testing.T) {
 		t.Error("discovered agent should be in registry")
 	}
 }
-
