@@ -15,21 +15,33 @@ func New(agentURL string, tc *models.TransportConfig) (Transport, error) {
 
 	switch tc.Type {
 	case "ssh":
+		port, err := configInt(tc.Config, "port", 22)
+		if err != nil {
+			return nil, err
+		}
+		fwdPort, err := configInt(tc.Config, "forward_port", 8080)
+		if err != nil {
+			return nil, err
+		}
 		cfg := SSHConfig{
 			Host:        configString(tc.Config, "host", ""),
 			User:        configString(tc.Config, "user", ""),
 			KeyPath:     configString(tc.Config, "key_path", ""),
-			Port:        configInt(tc.Config, "port", 22),
-			ForwardPort: configInt(tc.Config, "forward_port", 8080),
+			Port:        port,
+			ForwardPort: fwdPort,
 		}
 		return NewSSH(cfg)
 
 	case "docker":
+		agentPort, err := configInt(tc.Config, "agent_port", 8080)
+		if err != nil {
+			return nil, err
+		}
 		cfg := DockerConfig{
 			Container:  configString(tc.Config, "container", ""),
 			Network:    configString(tc.Config, "network", ""),
 			SocketPath: configString(tc.Config, "socket_path", "/var/run/docker.sock"),
-			AgentPort:  configInt(tc.Config, "agent_port", 8080),
+			AgentPort:  agentPort,
 		}
 		return NewDocker(cfg)
 
@@ -51,11 +63,15 @@ func New(agentURL string, tc *models.TransportConfig) (Transport, error) {
 		if args != "" {
 			argList = strings.Fields(args)
 		}
+		port, err := configInt(tc.Config, "port", 22)
+		if err != nil {
+			return nil, err
+		}
 		cfg := SSHExecConfig{
 			Host:    configString(tc.Config, "host", ""),
 			User:    configString(tc.Config, "user", ""),
 			KeyPath: configString(tc.Config, "key_path", ""),
-			Port:    configInt(tc.Config, "port", 22),
+			Port:    port,
 			Command: configString(tc.Config, "command", ""),
 			Args:    argList,
 		}
@@ -76,17 +92,17 @@ func configString(m map[string]string, key, defaultVal string) string {
 	return defaultVal
 }
 
-func configInt(m map[string]string, key string, defaultVal int) int {
+func configInt(m map[string]string, key string, defaultVal int) (int, error) {
 	if m == nil {
-		return defaultVal
+		return defaultVal, nil
 	}
 	v, ok := m[key]
 	if !ok || v == "" {
-		return defaultVal
+		return defaultVal, nil
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return defaultVal
+		return 0, fmt.Errorf("invalid %s value %q: must be a number", key, v)
 	}
-	return n
+	return n, nil
 }

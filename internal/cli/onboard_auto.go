@@ -17,11 +17,14 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 	r := bufio.NewReader(in)
 
 	if opts.Deep {
-		fmt.Fprintf(out, "\n%sScanning for agents (deep mode — probing SSH/Docker hosts)...%s\n\n", bold, reset)
+		fmt.Fprintf(out, "\n%sScanning for agents (deep mode — probing SSH/Docker hosts)...%s\n", bold, reset)
 	} else {
-		fmt.Fprintf(out, "\n%sScanning for agents...%s\n\n", bold, reset)
+		fmt.Fprintf(out, "\n%sScanning for agents...%s\n", bold, reset)
 	}
 
+	opts.Progress = func(msg string) {
+		fmt.Fprintf(out, "  %s%s%s\n", dim, msg, reset)
+	}
 	candidates := ScanAll(opts)
 
 	// Load registry to filter already-registered agents

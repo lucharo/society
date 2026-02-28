@@ -16,31 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/luischavesdev/society/internal/transport"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
-
-// sshHostKeyCallback returns an ssh.HostKeyCallback that verifies against
-// ~/.ssh/known_hosts. Falls back to InsecureIgnoreHostKey if the file is missing.
-func sshHostKeyCallback() ssh.HostKeyCallback {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		slog.Warn("ssh scan: cannot determine home directory, host key verification disabled")
-		return ssh.InsecureIgnoreHostKey()
-	}
-	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
-	cb, err := knownhosts.New(knownHostsPath)
-	if err != nil {
-		slog.Warn("ssh scan: cannot load known_hosts, host key verification disabled",
-			"path", knownHostsPath, "err", err)
-		return ssh.InsecureIgnoreHostKey()
-	}
-	return cb
-}
 
 // ScanOptions configures how agent scanning behaves.
 type ScanOptions struct {
-	Deep bool // Probe SSH/Docker hosts for live A2A agents
+	Deep     bool             // Probe SSH/Docker hosts for live A2A agents
+	Progress func(msg string) // Optional callback for progress messages
 }
 
 // Candidate represents a detected agent that can be onboarded.
@@ -72,13 +55,42 @@ var knownCLIArgs = map[string]string{
 
 // ScanAll runs all detection functions and returns candidates.
 func ScanAll(opts ScanOptions) []Candidate {
+	progress := opts.Progress
+	if progress == nil {
+		progress = func(string) {}
+	}
+
+	progress("Scanning local CLI tools...")
 	var all []Candidate
 	all = append(all, scanCLIs()...)
-	all = append(all, scanDocker()...)
-	all = append(all, scanSSH()...)
+
+	progress("Scanning Docker containers...")
+	if _, err := os.Stat("/var/run/docker.sock"); err != nil {
+		progress("  (skipped: Docker socket not found)")
+	} else {
+		all = append(all, scanDocker()...)
+	}
+
+	progress("Scanning SSH config...")
+	home, _ := os.UserHomeDir()
+	sshDir := filepath.Join(home, ".ssh")
+	if _, err := os.Stat(sshDir); err != nil {
+		progress("  (skipped: no ~/.ssh directory)")
+	} else if keys := findSSHKeys(sshDir); len(keys) == 0 {
+		progress("  (skipped: no SSH keys found in ~/.ssh)")
+	} else {
+		all = append(all, scanSSH()...)
+	}
+
+	progress("Scanning local A2A ports...")
 	all = append(all, scanA2A()...)
+
 	if opts.Deep {
-		deep := append(scanDockerDeep(), scanSSHDeep()...)
+		progress("Deep scan: probing Docker containers for A2A agents...")
+		deep := scanDockerDeep()
+		progress("Deep scan: probing SSH hosts for A2A agents...")
+		deep = append(deep, scanSSHDeep()...)
+		progress("Deep scan: probing SSH hosts for CLI tools...")
 		deep = append(deep, scanSSHDeepCLIs()...)
 		all = dedup(all, deep)
 	}
@@ -609,23 +621,12 @@ func scanSSHDeep() []Candidate {
 
 // probeViaSSH connects to an SSH host and probes for A2A agents on common ports.
 func probeViaSSH(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Candidate {
-	keyData, err := os.ReadFile(keyPath)
+	sshCfg, err := transport.BuildSSHClientConfig(sshUser, keyPath)
 	if err != nil {
-		slog.Debug("ssh deep scan: reading key", "host", hostAlias, "err", err)
+		slog.Debug("ssh deep scan: config", "host", hostAlias, "err", err)
 		return nil
 	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		slog.Debug("ssh deep scan: parsing key", "host", hostAlias, "err", err)
-		return nil
-	}
-
-	sshCfg := &ssh.ClientConfig{
-		User:            sshUser,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: sshHostKeyCallback(),
-		Timeout:         3 * time.Second,
-	}
+	sshCfg.Timeout = 3 * time.Second // shorter timeout for scanning
 
 	addr := fmt.Sprintf("%s:%d", hostname, sshPort)
 	slog.Info("ssh deep scan: probing host for A2A agents", "host", hostAlias, "addr", addr)
@@ -721,23 +722,12 @@ func scanSSHDeepCLIs() []Candidate {
 
 // probeSSHCLIs connects to an SSH host and checks for known CLI tools.
 func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Candidate {
-	keyData, err := os.ReadFile(keyPath)
+	sshCfg, err := transport.BuildSSHClientConfig(sshUser, keyPath)
 	if err != nil {
-		slog.Debug("ssh cli scan: reading key", "host", hostAlias, "err", err)
+		slog.Debug("ssh cli scan: config", "host", hostAlias, "err", err)
 		return nil
 	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		slog.Debug("ssh cli scan: parsing key", "host", hostAlias, "err", err)
-		return nil
-	}
-
-	sshCfg := &ssh.ClientConfig{
-		User:            sshUser,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: sshHostKeyCallback(),
-		Timeout:         3 * time.Second,
-	}
+	sshCfg.Timeout = 3 * time.Second // shorter timeout for scanning
 
 	addr := fmt.Sprintf("%s:%d", hostname, sshPort)
 	slog.Info("ssh cli scan: probing host for CLI tools", "host", hostAlias, "addr", addr)

@@ -19,7 +19,7 @@ func Ping(registryPath, name string, out io.Writer) error {
 
 	card, err := reg.Get(name)
 	if err != nil {
-		return fmt.Errorf("agent %q not found", name)
+		return fmt.Errorf("agent %q not found — run 'society list' to see registered agents or 'society onboard' to add one", name)
 	}
 
 	transport := "http"

@@ -17,6 +17,10 @@ func Send(registryPath, name, message string, out io.Writer, threadID ...string)
 		return fmt.Errorf("loading registry: %w", err)
 	}
 
+	if _, err := reg.Get(name); err != nil {
+		return fmt.Errorf("agent %q not found — run 'society list' to see registered agents or 'society onboard' to add one", name)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 

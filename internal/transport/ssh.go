@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -90,20 +89,9 @@ func WithSSHDialer(d SSHDialer) func(*SSHTransport) {
 }
 
 func (t *SSHTransport) Open(ctx context.Context) error {
-	keyData, err := os.ReadFile(t.config.KeyPath)
+	sshCfg, err := BuildSSHClientConfig(t.config.User, t.config.KeyPath)
 	if err != nil {
-		return fmt.Errorf("ssh: reading key: %w", err)
-	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		return fmt.Errorf("ssh: parsing key: %w", err)
-	}
-
-	sshCfg := &ssh.ClientConfig{
-		User:            t.config.User,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: SSHHostKeyCallback(),
-		Timeout:         10 * time.Second,
+		return fmt.Errorf("ssh: %w", err)
 	}
 
 	addr := fmt.Sprintf("%s:%d", t.config.Host, t.config.Port)

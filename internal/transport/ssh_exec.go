@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/luischavesdev/society/internal/models"
 	"golang.org/x/crypto/ssh"
@@ -124,20 +122,9 @@ func (t *SSHExecTransport) Open(ctx context.Context) error {
 	if t.client != nil {
 		t.client.Close()
 	}
-	keyData, err := os.ReadFile(t.config.KeyPath)
+	sshCfg, err := BuildSSHClientConfig(t.config.User, t.config.KeyPath)
 	if err != nil {
-		return fmt.Errorf("ssh-exec: reading key: %w", err)
-	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		return fmt.Errorf("ssh-exec: parsing key: %w", err)
-	}
-
-	sshCfg := &ssh.ClientConfig{
-		User:            t.config.User,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: SSHHostKeyCallback(),
-		Timeout:         10 * time.Second,
+		return fmt.Errorf("ssh-exec: %w", err)
 	}
 
 	addr := fmt.Sprintf("%s:%d", t.config.Host, t.config.Port)
@@ -187,8 +174,10 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 
 	const maxOutput = 10 << 20 // 10 MB
 	var stdout, stderr bytes.Buffer
-	sess.SetStdout(&limitedWriter{w: &stdout, n: maxOutput})
-	sess.SetStderr(&limitedWriter{w: &stderr, n: maxOutput})
+	stdoutLW := &limitedWriter{w: &stdout, n: maxOutput}
+	stderrLW := &limitedWriter{w: &stderr, n: maxOutput}
+	sess.SetStdout(stdoutLW)
+	sess.SetStderr(stderrLW)
 
 	// Run with context cancellation
 	done := make(chan error, 1)
@@ -211,6 +200,9 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 	}
 
 	response := parseCliResponse(stdout.String())
+	if stdoutLW.truncated {
+		response += "\n\n[warning: output truncated at 10 MB]"
+	}
 	return marshalTaskResponse(req.ID, req.Params.ID, models.TaskStateCompleted, "", response)
 }
 
@@ -221,18 +213,22 @@ func (t *SSHExecTransport) Close() error {
 	return nil
 }
 
-// limitedWriter wraps a writer and silently discards bytes beyond a limit.
+// limitedWriter wraps a writer and discards bytes beyond a limit.
+// Check the truncated field after writing to detect if output was capped.
 type limitedWriter struct {
-	w io.Writer
-	n int64
+	w         io.Writer
+	n         int64
+	truncated bool
 }
 
 func (lw *limitedWriter) Write(p []byte) (int, error) {
 	if lw.n <= 0 {
+		lw.truncated = true
 		return len(p), nil // discard
 	}
 	if int64(len(p)) > lw.n {
 		p = p[:lw.n]
+		lw.truncated = true
 	}
 	n, err := lw.w.Write(p)
 	lw.n -= int64(n)

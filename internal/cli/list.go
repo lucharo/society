@@ -29,16 +29,17 @@ func List(registryPath string, out io.Writer) error {
 		endpoint := a.URL
 		if a.Transport != nil {
 			transport = a.Transport.Type
+			cfg := a.Transport.Config
 			switch transport {
 			case "ssh":
-				cfg := a.Transport.Config
 				endpoint = fmt.Sprintf("%s@%s:%s → :%s",
 					cfg["user"], cfg["host"], cfg["port"], cfg["forward_port"])
+			case "ssh-exec":
+				endpoint = fmt.Sprintf("%s@%s → %s",
+					cfg["user"], cfg["host"], cfg["command"])
 			case "docker":
-				cfg := a.Transport.Config
 				endpoint = fmt.Sprintf("%s:%s", cfg["container"], cfg["agent_port"])
 			case "stdio":
-				cfg := a.Transport.Config
 				cmd := cfg["command"]
 				if args := cfg["args"]; args != "" {
 					cmd += " " + args

@@ -305,6 +305,41 @@ func TestShellEscape(t *testing.T) {
 	}
 }
 
+// --- limitedWriter tests ---
+
+func TestLimitedWriter(t *testing.T) {
+	tests := []struct {
+		name      string
+		limit     int64
+		writes    []string
+		wantBuf   string
+		wantTrunc bool
+	}{
+		{"within limit", 100, []string{"hello"}, "hello", false},
+		{"exact limit", 5, []string{"hello"}, "hello", false},
+		{"exceeds on single write", 3, []string{"hello"}, "hel", true},
+		{"exceeds across writes", 5, []string{"hel", "lo world"}, "hello", true},
+		{"all discarded after limit", 3, []string{"abc", "def", "ghi"}, "abc", true},
+		{"zero limit", 0, []string{"hello"}, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf strings.Builder
+			lw := &limitedWriter{w: &buf, n: tt.limit}
+			for _, s := range tt.writes {
+				lw.Write([]byte(s))
+			}
+			if got := buf.String(); got != tt.wantBuf {
+				t.Errorf("buffer = %q, want %q", got, tt.wantBuf)
+			}
+			if lw.truncated != tt.wantTrunc {
+				t.Errorf("truncated = %v, want %v", lw.truncated, tt.wantTrunc)
+			}
+		})
+	}
+}
+
 // --- parseCliResponse tests ---
 
 func TestParseCliResponse(t *testing.T) {

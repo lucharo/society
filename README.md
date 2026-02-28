@@ -72,14 +72,16 @@ society send --thread session-1 claude "write tests for it"
 ### 4. Connect a remote agent
 
 ```bash
-# Register an agent on a remote server
-society onboard
+# Deep scan finds CLI tools on SSH hosts automatically
+society onboard --deep
+# ✓ Found 2 remote CLI tools via SSH: arch-claude, arch-codex
+
+# Or register manually
+society onboard --manual
 # → name: server-claude
-# → transport: ssh
+# → transport: ssh-exec
 # → host: my-server
-# → user: deploy
-# → key: ~/.ssh/id_ed25519
-# → port: 8003
+# → command: claude
 
 # Now talk to it
 society send server-claude "hello from my laptop"
@@ -110,7 +112,8 @@ Every registered agent becomes a tool: `send_echo`, `send_claude`, `send_server_
 | Transport | Use case |
 |-----------|----------|
 | **HTTP** | Local agents, same network |
-| **SSH** | Remote servers, Tailscale hosts |
+| **SSH** | Remote servers with A2A daemon (tunnel) |
+| **SSH Exec** | Remote CLI tools (claude, codex) over SSH — no daemon needed |
 | **Docker** | Agents in containers |
 | **STDIO** | On-demand subprocess agents |
 
@@ -135,7 +138,7 @@ The `exec` handler wraps any CLI tool as an agent. Built-in handlers: `echo`, `g
 ## Commands
 
 ```
-society onboard [--manual]         Auto-detect and register agents (--manual: wizard)
+society onboard [--manual] [--deep] Auto-detect and register agents
 society list                       List all agents
 society send <name> <message>      Send a message [--thread <id>]
 society ping <name>                Health-check an agent
