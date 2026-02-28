@@ -56,6 +56,9 @@ var knownCLIs = map[string]string{
 }
 
 // knownCLIArgs maps CLI tool names to default arguments for remote execution.
+// These include --dangerously-skip-permissions for Claude because Society agents
+// run unattended — there's nobody to approve prompts. Users can override args
+// in the registry after onboarding if needed.
 var knownCLIArgs = map[string]string{
 	"claude": "-p --output-format json --dangerously-skip-permissions",
 	"codex":  "--quiet",
