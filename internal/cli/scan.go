@@ -56,12 +56,15 @@ var knownCLIs = map[string]string{
 }
 
 // knownCLIArgs maps CLI tool names to default arguments for remote execution.
-// These include --dangerously-skip-permissions for Claude because Society agents
-// run unattended — there's nobody to approve prompts. Users can override args
-// in the registry after onboarding if needed.
+// Society agents run unattended — there's nobody to approve prompts — so each
+// tool gets its safe-but-autonomous flag. Users can override args in the
+// registry after onboarding if needed.
 var knownCLIArgs = map[string]string{
-	"claude": "-p --output-format json --dangerously-skip-permissions",
-	"codex":  "--quiet",
+	"claude":   "-p --output-format json --dangerously-skip-permissions",
+	"codex":    "--quiet --full-auto",
+	"aider":    "--yes-always",
+	"droid":    "--auto high",
+	"opencode": "--quiet",
 }
 
 // ScanAll runs all detection functions and returns candidates.
