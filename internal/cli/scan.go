@@ -791,7 +791,7 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 				if err != nil {
 					continue
 				}
-				// Check executable and print the resolved path.
+				// Double quotes are intentional — $HOME must be expanded by the remote shell.
 				cmd := fmt.Sprintf("p=\"%s\" && test -x \"$p\" && echo \"$p\"", candidate)
 				out, err := sess2.CombinedOutput(cmd)
 				sess2.Close()
@@ -958,8 +958,9 @@ func scanTailscale(peers []tailscalePeer) []Candidate {
 	return candidates
 }
 
-// tailscaleSSHHosts returns sshHost entries for Tailscale-only peers (not in SSH
-// config). These are used for deep probing via SSH.
+// tailscaleSSHHosts returns sshHost entries for Tailscale peers that are NOT in
+// ~/.ssh/config (those are already handled by scanSSHDeep/scanSSHDeepCLIs).
+// It reads the SSH config internally to filter out duplicates.
 func tailscaleSSHHosts(peers []tailscalePeer) []sshHost {
 	if len(peers) == 0 {
 		return nil
