@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/luischavesdev/society/internal/cliparse"
 	"github.com/luischavesdev/society/internal/models"
 	"github.com/luischavesdev/society/internal/registry"
 )
@@ -158,6 +159,10 @@ func (s *Server) handleToolsList(id json.RawMessage) {
 						"type":        "string",
 						"description": "Optional thread ID to continue a conversation",
 					},
+					"trace": map[string]any{
+						"type":        "boolean",
+						"description": "Include trace data (tool calls, duration, cost) in response",
+					},
 				},
 				"required": []string{"message"},
 			},
@@ -187,6 +192,7 @@ func (s *Server) handleToolsCall(ctx context.Context, id json.RawMessage, params
 	var args struct {
 		Message  string `json:"message"`
 		ThreadID string `json:"thread_id"`
+		Trace    bool   `json:"trace"`
 	}
 	if err := json.Unmarshal(params.Arguments, &args); err != nil {
 		s.writeError(id, -32602, "invalid arguments")
@@ -215,7 +221,17 @@ func (s *Server) handleToolsCall(ctx context.Context, id json.RawMessage, params
 	}
 
 	var text string
+	var traceText string
 	for _, a := range task.Artifacts {
+		if a.Name == "trace" && args.Trace {
+			for _, p := range a.Parts {
+				if p.Type == "data" && p.Data != nil {
+					raw, _ := json.Marshal(p.Data)
+					traceText = cliparse.FormatTrace(raw, cliparse.PlainStyle())
+				}
+			}
+			continue
+		}
 		for _, p := range a.Parts {
 			if p.Type == "text" {
 				if text != "" {
@@ -238,6 +254,10 @@ func (s *Server) handleToolsCall(ctx context.Context, id json.RawMessage, params
 			"isError": true,
 		})
 		return
+	}
+
+	if traceText != "" {
+		text += "\n\n---\n" + traceText
 	}
 
 	s.writeResult(id, map[string]any{
