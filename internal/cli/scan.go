@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/user"
@@ -16,7 +17,26 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+// sshHostKeyCallback returns an ssh.HostKeyCallback that verifies against
+// ~/.ssh/known_hosts. Falls back to InsecureIgnoreHostKey if the file is missing.
+func sshHostKeyCallback() ssh.HostKeyCallback {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		slog.Warn("ssh scan: cannot determine home directory, host key verification disabled")
+		return ssh.InsecureIgnoreHostKey()
+	}
+	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+	cb, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		slog.Warn("ssh scan: cannot load known_hosts, host key verification disabled",
+			"path", knownHostsPath, "err", err)
+		return ssh.InsecureIgnoreHostKey()
+	}
+	return cb
+}
 
 // ScanOptions configures how agent scanning behaves.
 type ScanOptions struct {
@@ -517,7 +537,7 @@ func scanDockerDeep() []Candidate {
 
 // inspectContainerIP gets the first network IP of a Docker container.
 func inspectContainerIP(socketClient *http.Client, name string) string {
-	resp, err := socketClient.Get(fmt.Sprintf("http://localhost/containers/%s/json", name))
+	resp, err := socketClient.Get(fmt.Sprintf("http://localhost/containers/%s/json", url.PathEscape(name)))
 	if err != nil {
 		return ""
 	}
@@ -603,11 +623,12 @@ func probeViaSSH(hostAlias, hostname, sshUser, keyPath string, sshPort int) []Ca
 	sshCfg := &ssh.ClientConfig{
 		User:            sshUser,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: sshHostKeyCallback(),
 		Timeout:         3 * time.Second,
 	}
 
 	addr := fmt.Sprintf("%s:%d", hostname, sshPort)
+	slog.Info("ssh deep scan: probing host for A2A agents", "host", hostAlias, "addr", addr)
 	client, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {
 		slog.Debug("ssh deep scan: dial failed", "host", hostAlias, "addr", addr, "err", err)
@@ -714,11 +735,12 @@ func probeSSHCLIs(hostAlias, hostname, sshUser, keyPath string, sshPort int) []C
 	sshCfg := &ssh.ClientConfig{
 		User:            sshUser,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: sshHostKeyCallback(),
 		Timeout:         3 * time.Second,
 	}
 
 	addr := fmt.Sprintf("%s:%d", hostname, sshPort)
+	slog.Info("ssh cli scan: probing host for CLI tools", "host", hostAlias, "addr", addr)
 	client, err := ssh.Dial("tcp", addr, sshCfg)
 	if err != nil {
 		slog.Debug("ssh cli scan: dial failed", "host", hostAlias, "addr", addr, "err", err)

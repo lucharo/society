@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -100,13 +99,10 @@ func (t *SSHTransport) Open(ctx context.Context) error {
 		return fmt.Errorf("ssh: parsing key: %w", err)
 	}
 
-	// TODO(#1): support known_hosts verification via knownhosts.New()
-	slog.Warn("ssh: host key verification disabled — vulnerable to MITM attacks",
-		"host", t.config.Host)
 	sshCfg := &ssh.ClientConfig{
 		User:            t.config.User,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: SSHHostKeyCallback(),
 		Timeout:         10 * time.Second,
 	}
 

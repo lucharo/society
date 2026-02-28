@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -131,12 +130,10 @@ func (t *SSHExecTransport) Open(ctx context.Context) error {
 		return fmt.Errorf("ssh-exec: parsing key: %w", err)
 	}
 
-	slog.Warn("ssh-exec: host key verification disabled",
-		"host", t.config.Host)
 	sshCfg := &ssh.ClientConfig{
 		User:            t.config.User,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: SSHHostKeyCallback(),
 		Timeout:         10 * time.Second,
 	}
 
