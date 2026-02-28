@@ -91,36 +91,68 @@ SSH key path: ~/.ssh/id_ed25519
 Agent port: 8001
 ```
 
+## SSH Exec: no daemon needed
+
+If the remote machine has CLI tools like `claude` or `codex` installed but you don't want to run a Society daemon there, use the **ssh-exec** transport. It SSHes in, runs the command, and returns the output.
+
+**Auto-detect with deep scan:**
+
+```bash
+society onboard --deep
+```
+
+This scans all hosts from your `~/.ssh/config` and finds installed CLIs automatically.
+
+**Manual registration:**
+
+```bash
+society onboard --manual
+```
+
+```
+Agent name: server-claude
+Transport: ssh-exec
+SSH host: my-server
+SSH user: deploy
+SSH key path: ~/.ssh/id_ed25519
+Remote command: /usr/local/bin/claude
+```
+
+Now `society send server-claude "hello"` SSHes in and runs Claude directly.
+
 ## Using Tailscale
 
 If both machines are on [Tailscale](https://tailscale.com), you can use Tailscale hostnames directly:
 
 ```bash
-society onboard
+society onboard --manual
 ```
 
 ```
 Agent name: arch-claude
-Transport: ssh
-SSH host: arch           # Tailscale hostname
+Transport: ssh            # or ssh-exec
+SSH host: arch            # Tailscale hostname
 SSH user: luis
 SSH key path: ~/.ssh/id_ed25519
-Agent port: 8003
+Agent port: 8003          # for ssh tunnel transport
 ```
 
 Or if the Tailscale network allows direct HTTP:
 
-```bash
-society onboard
-```
-
 ```
 Agent name: arch-claude
 Transport: http
-URL: http://arch:8003    # Tailscale resolves this
+URL: http://arch:8003     # Tailscale resolves this
 ```
 
-The SSH transport is preferred because it works even when the remote machine's ports aren't directly exposed.
+The SSH transports are preferred because they work even when the remote machine's ports aren't directly exposed.
+
+### macOS SSH requirement
+
+Both SSH transports require an SSH server on the remote host. **macOS has sshd disabled by default.** To enable it:
+
+- **Option 1: macOS Remote Login** — System Settings > General > Sharing > Remote Login
+- **Option 2: Tailscale SSH** — `sudo tailscale set --ssh` (more secure, Tailscale-only access). Note: this does **not** work with the App Store version of Tailscale — you need the [standalone build](https://tailscale.com/download).
 
 ## Import/export registries
 
