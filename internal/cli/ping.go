@@ -37,7 +37,7 @@ func Ping(registryPath, name string, out io.Writer) error {
 	elapsed := time.Since(start)
 
 	if err != nil {
-		fmt.Fprintf(out, "  %s✗ Failed%s: %v\n", "\033[31m", reset, err)
+		fmt.Fprintf(out, "  %s✗ Failed%s: %v\n", red, reset, err)
 		return err
 	}
 

@@ -62,7 +62,7 @@ func main() {
 		onboardFlags := flag.NewFlagSet("onboard", flag.ExitOnError)
 		manualFlag := onboardFlags.Bool("manual", false, "Interactive manual setup")
 		deepFlag := onboardFlags.Bool("deep", false, "Probe SSH/Docker hosts for live A2A agents")
-		onboardFlags.Bool("auto", false, "Auto-detect (default, kept for backwards compatibility)")
+		onboardFlags.Bool("auto", false, "No-op: auto-detect is now the default")
 		onboardFlags.Parse(os.Args[2:])
 
 		if *manualFlag {

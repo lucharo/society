@@ -11,6 +11,7 @@ import (
 const (
 	bold  = "\033[1m"
 	dim   = "\033[2m"
+	red   = "\033[31m"
 	green = "\033[32m"
 	cyan  = "\033[36m"
 	reset = "\033[0m"

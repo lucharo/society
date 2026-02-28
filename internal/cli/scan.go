@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -167,7 +168,15 @@ func GroupByMachine(candidates []Candidate) (singles []Candidate, groups []Machi
 		}
 	}
 
-	for ip, indices := range ipToCandidates {
+	// Sort IPs for deterministic group ordering
+	ips := make([]string, 0, len(ipToCandidates))
+	for ip := range ipToCandidates {
+		ips = append(ips, ip)
+	}
+	sort.Strings(ips)
+
+	for _, ip := range ips {
+		indices := ipToCandidates[ip]
 		if len(indices) == 1 {
 			singles = append(singles, candidates[indices[0]])
 			continue
@@ -185,7 +194,6 @@ func GroupByMachine(candidates []Candidate) (singles []Candidate, groups []Machi
 		for _, idx := range indices {
 			group.Candidates = append(group.Candidates, candidates[idx])
 		}
-		_ = ip // used as map key
 		groups = append(groups, group)
 	}
 	return

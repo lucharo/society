@@ -181,15 +181,19 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 
 		// Show route selection sub-prompt
 		fmt.Fprintf(out, "\n%s%s%s has %d connection routes:\n", bold, g.Name, reset, len(g.Candidates))
+		routes := g.Candidates
+		if len(routes) > 26 {
+			routes = routes[:26]
+		}
 		labels := "abcdefghijklmnopqrstuvwxyz"
-		for i, c := range g.Candidates {
+		for i, c := range routes {
 			label := string(labels[i])
 			desc := candidateRouteDesc(c)
 			fmt.Fprintf(out, "  %s%s)%s %-16s %s\n", cyan, label, reset, c.Name, desc)
 		}
 
-		options := make([]string, len(g.Candidates))
-		for i := range g.Candidates {
+		options := make([]string, len(routes))
+		for i := range routes {
 			options[i] = string(labels[i])
 		}
 		choice := promptChoice(r, out, "Route", options, "a")

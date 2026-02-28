@@ -41,7 +41,7 @@ func Send(registryPath, name, message string, out io.Writer, threadID ...string)
 
 	// Print thread/status info in dim
 	if task.Status.State == "failed" {
-		fmt.Fprintf(out, "\n%s✗ %s%s\n", "\033[31m", task.Status.Message, reset)
+		fmt.Fprintf(out, "\n%s✗ %s%s\n", red, task.Status.Message, reset)
 	}
 	if task.ID != "" {
 		fmt.Fprintf(out, "\n%sthread: %s%s\n", dim, task.ID, reset)
