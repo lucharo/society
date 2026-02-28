@@ -54,6 +54,7 @@ var knownCLIs = map[string]string{
 	"opencode": "OpenCode agent",
 	"droid":    "Droid AI agent",
 	"goose":    "Goose AI agent",
+	"gemini":   "Gemini CLI agent",
 }
 
 // knownCLIArgs maps CLI tool names to default arguments for remote execution.
@@ -66,6 +67,7 @@ var knownCLIArgs = map[string]string{
 	"aider":    "--yes-always",
 	"droid":    "--auto high -o json",
 	"opencode": "--quiet",
+	"gemini":   "--yolo --sandbox --output-format json",
 }
 
 // ScanAll runs all detection functions and returns candidates.
