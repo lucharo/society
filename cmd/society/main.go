@@ -101,31 +101,13 @@ func main() {
 		err = cli.Run(*configPath, *stdio, os.Stdout)
 
 	case "send":
-		// Go's flag package stops at the first non-flag arg, so flags after
-		// the agent name (e.g. "society send echo msg --trace") aren't parsed.
-		// Extract known flags from all positions before parsing positional args.
-		var sendTrace bool
-		var sendThread string
-		var positional []string
-		for i := 2; i < len(os.Args); i++ {
-			switch os.Args[i] {
-			case "--trace":
-				sendTrace = true
-			case "--thread":
-				if i+1 < len(os.Args) {
-					i++
-					sendThread = os.Args[i]
-				}
-			default:
-				positional = append(positional, os.Args[i])
-			}
-		}
-		if len(positional) < 2 {
+		parsed := parseSendArgs(os.Args[2:])
+		if len(parsed.positional) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: society send <name> <message> [--thread <id>] [--trace]")
 			os.Exit(1)
 		}
-		message := strings.Join(positional[1:], " ")
-		err = cli.Send(registryPath, positional[0], message, os.Stdout, sendTrace, sendThread)
+		message := strings.Join(parsed.positional[1:], " ")
+		err = cli.Send(registryPath, parsed.positional[0], message, os.Stdout, parsed.trace, parsed.thread)
 
 	case "export":
 		fs := flag.NewFlagSet("export", flag.ExitOnError)
@@ -209,6 +191,33 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// sendParsed holds the result of parsing "society send" arguments.
+type sendParsed struct {
+	positional []string
+	trace      bool
+	thread     string
+}
+
+// parseSendArgs extracts flags from any position in the arg list.
+// Go's flag package stops at the first non-flag arg, so we handle this manually.
+func parseSendArgs(args []string) sendParsed {
+	var p sendParsed
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--trace":
+			p.trace = true
+		case "--thread":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				i++
+				p.thread = args[i]
+			}
+		default:
+			p.positional = append(p.positional, args[i])
+		}
+	}
+	return p
 }
 
 func printUsage() {

@@ -45,7 +45,7 @@ func Parse(stdout string) Output {
 			if json.Unmarshal(ev, &entry) != nil {
 				continue
 			}
-			if entry.Type == "system" {
+			if entry.Type == "system" || entry.Type == "rate_limit_event" {
 				continue
 			}
 			filtered = append(filtered, ev)

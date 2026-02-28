@@ -29,6 +29,12 @@ func TestParse(t *testing.T) {
 			true,
 		},
 		{
+			"verbose filters rate_limit_event",
+			`[{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]}},{"type":"rate_limit_event","rate_limit_info":{}},{"type":"result","result":"hi","total_cost_usd":0.01}]`,
+			"hi",
+			true,
+		},
+		{
 			"verbose array no result entry",
 			`[{"type":"system","subtype":"init","tools":["a"]},{"type":"assistant","message":"hi"}]`,
 			`[{"type":"system","subtype":"init","tools":["a"]},{"type":"assistant","message":"hi"}]`,
@@ -54,11 +60,14 @@ func TestParse(t *testing.T) {
 			if !tt.wantVerbose && got.Verbose != nil {
 				t.Errorf("Parse(%q).Verbose = %s, want nil", tt.stdout, got.Verbose)
 			}
-			// Verify system/init entries are filtered from verbose output
+			// Verify filtered entries are removed from verbose output
 			if got.Verbose != nil {
 				s := string(got.Verbose)
 				if strings.Contains(s, `"type":"system"`) {
 					t.Errorf("verbose output should not contain system entries, got %s", s)
+				}
+				if strings.Contains(s, `"type":"rate_limit_event"`) {
+					t.Errorf("verbose output should not contain rate_limit_event entries, got %s", s)
 				}
 			}
 		})
