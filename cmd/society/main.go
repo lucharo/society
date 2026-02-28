@@ -101,18 +101,31 @@ func main() {
 		err = cli.Run(*configPath, *stdio, os.Stdout)
 
 	case "send":
-		fs := flag.NewFlagSet("send", flag.ExitOnError)
-		threadFlag := fs.String("thread", "", "Continue an existing thread")
-		traceFlag := fs.Bool("trace", false, "Show verbose trace data (tool calls, usage, cost)")
-		fs.Parse(os.Args[2:])
-
-		sendArgs := fs.Args()
-		if len(sendArgs) < 2 {
+		// Go's flag package stops at the first non-flag arg, so flags after
+		// the agent name (e.g. "society send echo msg --trace") aren't parsed.
+		// Extract known flags from all positions before parsing positional args.
+		var sendTrace bool
+		var sendThread string
+		var positional []string
+		for i := 2; i < len(os.Args); i++ {
+			switch os.Args[i] {
+			case "--trace":
+				sendTrace = true
+			case "--thread":
+				if i+1 < len(os.Args) {
+					i++
+					sendThread = os.Args[i]
+				}
+			default:
+				positional = append(positional, os.Args[i])
+			}
+		}
+		if len(positional) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: society send <name> <message> [--thread <id>] [--trace]")
 			os.Exit(1)
 		}
-		message := strings.Join(sendArgs[1:], " ")
-		err = cli.Send(registryPath, sendArgs[0], message, os.Stdout, *traceFlag, *threadFlag)
+		message := strings.Join(positional[1:], " ")
+		err = cli.Send(registryPath, positional[0], message, os.Stdout, sendTrace, sendThread)
 
 	case "export":
 		fs := flag.NewFlagSet("export", flag.ExitOnError)
