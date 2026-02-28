@@ -183,6 +183,7 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 		fmt.Fprintf(out, "\n%s%s%s has %d connection routes:\n", bold, g.Name, reset, len(g.Candidates))
 		routes := g.Candidates
 		if len(routes) > 26 {
+			fmt.Fprintf(out, "  %s(showing first 26 of %d routes)%s\n", dim, len(routes), reset)
 			routes = routes[:26]
 		}
 		labels := "abcdefghijklmnopqrstuvwxyz"
