@@ -89,37 +89,120 @@ func OnboardAuto(registryPath string, opts ScanOptions, in io.Reader, out io.Wri
 		return nil
 	}
 
+	// Group SSH candidates that point to the same machine
+	singles, groups := GroupByMachine(available)
+
+	// Filter out groups where all candidates are already registered
+	var availableGroups []MachineGroup
+	for _, g := range groups {
+		var unregistered []Candidate
+		for _, c := range g.Candidates {
+			if !reg.Has(c.Name) {
+				unregistered = append(unregistered, c)
+			}
+		}
+		if len(unregistered) > 0 {
+			g.Candidates = unregistered
+			availableGroups = append(availableGroups, g)
+		}
+	}
+
+	// Build a unified display list: each item is either a single candidate or a group
+	type displayItem struct {
+		candidate *Candidate    // non-nil for singles
+		group     *MachineGroup // non-nil for groups
+	}
+	var items []displayItem
+	for i := range singles {
+		items = append(items, displayItem{candidate: &singles[i]})
+	}
+	for i := range availableGroups {
+		items = append(items, displayItem{group: &availableGroups[i]})
+	}
+
+	if len(items) == 0 {
+		fmt.Fprintf(out, "\nAll detected agents are already registered. Run %ssociety list%s to see them.\n", bold, reset)
+		return nil
+	}
+
 	// Display numbered list with transport details
 	fmt.Fprintf(out, "\n%sAvailable to register:%s\n\n", bold, reset)
-	for i, c := range available {
-		transport := candidateTransportDesc(c)
-		fmt.Fprintf(out, "  %s%d.%s %s%-16s%s %s\n",
-			cyan, i+1, reset,
-			bold, c.Name, reset,
-			transport)
+	for i, item := range items {
+		if item.candidate != nil {
+			transport := candidateTransportDesc(*item.candidate)
+			fmt.Fprintf(out, "  %s%d.%s %s%-16s%s %s\n",
+				cyan, i+1, reset,
+				bold, item.candidate.Name, reset,
+				transport)
+		} else {
+			fmt.Fprintf(out, "  %s%d.%s %s%-16s%s %s%d routes available%s\n",
+				cyan, i+1, reset,
+				bold, item.group.Name, reset,
+				dim, len(item.group.Candidates), reset)
+		}
 	}
 
 	fmt.Fprintln(out)
 	selection := prompt(r, out, "Register which agents? (numbers, or 'all')", "all")
 
-	var selected []Candidate
+	var selectedItems []displayItem
 	if strings.ToLower(strings.TrimSpace(selection)) == "all" {
-		selected = available
+		selectedItems = items
 	} else {
 		for _, s := range strings.Split(selection, ",") {
 			s = strings.TrimSpace(s)
 			idx, err := strconv.Atoi(s)
-			if err != nil || idx < 1 || idx > len(available) {
+			if err != nil || idx < 1 || idx > len(items) {
 				fmt.Fprintf(out, "  skipping invalid selection: %s\n", s)
 				continue
 			}
-			selected = append(selected, available[idx-1])
+			selectedItems = append(selectedItems, items[idx-1])
 		}
 	}
 
-	if len(selected) == 0 {
+	if len(selectedItems) == 0 {
 		fmt.Fprintln(out, "\nNo agents selected.")
 		return nil
+	}
+
+	// Resolve groups: prompt user to pick a route for each selected group
+	var selected []Candidate
+	for _, item := range selectedItems {
+		if item.candidate != nil {
+			selected = append(selected, *item.candidate)
+			continue
+		}
+
+		g := item.group
+		if len(g.Candidates) == 1 {
+			selected = append(selected, g.Candidates[0])
+			continue
+		}
+
+		// Show route selection sub-prompt
+		fmt.Fprintf(out, "\n%s%s%s has %d connection routes:\n", bold, g.Name, reset, len(g.Candidates))
+		labels := "abcdefghijklmnopqrstuvwxyz"
+		for i, c := range g.Candidates {
+			label := string(labels[i])
+			desc := candidateRouteDesc(c)
+			fmt.Fprintf(out, "  %s%s)%s %-16s %s\n", cyan, label, reset, c.Name, desc)
+		}
+
+		options := make([]string, len(g.Candidates))
+		for i := range g.Candidates {
+			options[i] = string(labels[i])
+		}
+		choice := promptChoice(r, out, "Route", options, "a")
+
+		// Find selected route
+		picked := 0
+		for i, opt := range options {
+			if strings.EqualFold(choice, opt) {
+				picked = i
+				break
+			}
+		}
+		selected = append(selected, g.Candidates[picked])
 	}
 
 	// Register each selected candidate, collecting results for summary
@@ -251,6 +334,24 @@ func countVerified(candidates []Candidate) int {
 		}
 	}
 	return n
+}
+
+// candidateRouteDesc returns a short description of an SSH route for the route picker.
+func candidateRouteDesc(c Candidate) string {
+	user := c.Config["user"]
+	host := c.Config["host"]
+	port := c.Config["port"]
+	if port == "" {
+		port = "22"
+	}
+	suffix := ""
+	if c.Source == "tailscale" {
+		suffix = " (Tailscale)"
+	}
+	if user != "" {
+		return fmt.Sprintf("%s%s@%s:%s%s%s", dim, user, host, port, suffix, reset)
+	}
+	return fmt.Sprintf("%s%s:%s%s%s", dim, host, port, suffix, reset)
 }
 
 func candidateToCard(c Candidate) (models.AgentCard, bool) {

@@ -118,7 +118,77 @@ func ScanAll(opts ScanOptions) []Candidate {
 		deep = append(deep, scanTailscaleDeepCLIs(tsPeers)...)
 		all = dedup(all, deep)
 	}
+
+	// Deduplicate by name: prefer live A2A/verified candidates over CLI stubs.
+	all = dedupByName(all)
+
+	// Resolve IPs for SSH/ssh-exec candidates to enable machine grouping.
+	resolveIPs(all)
+
 	return all
+}
+
+// resolveIPs resolves the hostname of SSH/ssh-exec candidates to an IP address
+// and stores it in Config["resolved_ip"]. This enables groupByMachine to detect
+// multiple SSH routes pointing to the same physical machine.
+func resolveIPs(candidates []Candidate) {
+	for i := range candidates {
+		c := &candidates[i]
+		if c.Transport != "ssh" && c.Transport != "ssh-exec" {
+			continue
+		}
+		host := c.Config["host"]
+		if host == "" {
+			continue
+		}
+		if ips, err := net.LookupHost(host); err == nil && len(ips) > 0 {
+			c.Config["resolved_ip"] = ips[0]
+		}
+	}
+}
+
+// MachineGroup represents multiple SSH candidates that resolve to the same machine.
+type MachineGroup struct {
+	Name       string      // Display name (shortest alias)
+	Candidates []Candidate // All routes to this machine
+}
+
+// GroupByMachine groups SSH/ssh-exec candidates by resolved IP.
+// Returns ungrouped candidates (singles + non-SSH) and groups with 2+ routes.
+func GroupByMachine(candidates []Candidate) (singles []Candidate, groups []MachineGroup) {
+	// Collect SSH candidates by resolved IP
+	ipToCandidates := make(map[string][]int) // resolved_ip → indices
+	for i, c := range candidates {
+		if (c.Transport == "ssh" || c.Transport == "ssh-exec") && c.Config["resolved_ip"] != "" {
+			ip := c.Config["resolved_ip"]
+			ipToCandidates[ip] = append(ipToCandidates[ip], i)
+		} else {
+			singles = append(singles, c)
+		}
+	}
+
+	for ip, indices := range ipToCandidates {
+		if len(indices) == 1 {
+			singles = append(singles, candidates[indices[0]])
+			continue
+		}
+
+		// Pick the shortest name as display name
+		bestName := candidates[indices[0]].Name
+		for _, idx := range indices[1:] {
+			if len(candidates[idx].Name) < len(bestName) {
+				bestName = candidates[idx].Name
+			}
+		}
+
+		group := MachineGroup{Name: bestName}
+		for _, idx := range indices {
+			group.Candidates = append(group.Candidates, candidates[idx])
+		}
+		_ = ip // used as map key
+		groups = append(groups, group)
+	}
+	return
 }
 
 // dedup merges deep (verified) candidates into the shallow list.
@@ -158,6 +228,48 @@ func dedup(shallow, deep []Candidate) []Candidate {
 	}
 	result = append(result, deep...)
 	return result
+}
+
+// dedupByName removes duplicate candidates with the same name.
+// When two candidates share a name, prefer the one that is verified or
+// running as a live A2A agent over a CLI stub.
+func dedupByName(candidates []Candidate) []Candidate {
+	seen := make(map[string]int) // name → index in result
+	var result []Candidate
+	for _, c := range candidates {
+		if idx, exists := seen[c.Name]; exists {
+			// Replace if the new candidate is "better":
+			// verified > unverified, a2a/http > cli/stdio
+			prev := result[idx]
+			if candidatePriority(c) > candidatePriority(prev) {
+				result[idx] = c
+			}
+		} else {
+			seen[c.Name] = len(result)
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+// candidatePriority returns a score for dedup preference.
+// Higher = preferred when names collide.
+func candidatePriority(c Candidate) int {
+	score := 0
+	if c.Verified {
+		score += 10
+	}
+	switch c.Source {
+	case "a2a":
+		score += 5
+	case "docker", "ssh":
+		score += 3
+	case "ssh-cli", "tailscale":
+		score += 2
+	case "cli":
+		score += 1
+	}
+	return score
 }
 
 // scanCLIs checks PATH for known AI CLI tools.
@@ -946,18 +1058,22 @@ func scanTailscale(peers []tailscalePeer) []Candidate {
 
 		// With SSH keys available, offer as SSH tunnel candidate
 		if len(keys) > 0 {
+			cfg := map[string]string{
+				"host":         hostname,
+				"user":         currentUser,
+				"port":         "22",
+				"key_path":     keys[0],
+				"forward_port": "8080",
+			}
+			if len(p.tailscaleIPs) > 0 {
+				cfg["resolved_ip"] = p.tailscaleIPs[0]
+			}
 			candidates = append(candidates, Candidate{
 				Name:        hostname,
 				Description: fmt.Sprintf("Tailscale peer (%s)", p.os),
 				Transport:   "ssh",
 				Source:      "tailscale",
-				Config: map[string]string{
-					"host":         hostname,
-					"user":         currentUser,
-					"port":         "22",
-					"key_path":     keys[0],
-					"forward_port": "8080",
-				},
+				Config:      cfg,
 			})
 		}
 	}
