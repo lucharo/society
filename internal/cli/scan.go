@@ -57,7 +57,7 @@ var knownCLIs = map[string]string{
 
 // knownCLIArgs maps CLI tool names to default arguments for remote execution.
 var knownCLIArgs = map[string]string{
-	"claude": "-p --output-format json",
+	"claude": "-p --output-format json --dangerously-skip-permissions",
 	"codex":  "--quiet",
 }
 

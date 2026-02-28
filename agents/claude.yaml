@@ -7,7 +7,7 @@ system_prompt: |
   Keep responses concise.
 backend:
   command: claude
-  args: ["-p", "--output-format", "json"]
+  args: ["-p", "--output-format", "json", "--dangerously-skip-permissions"]
   session_flag: "--session-id"
   resume_flag: "--resume"
 skills:
