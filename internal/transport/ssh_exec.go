@@ -159,18 +159,22 @@ func (t *SSHExecTransport) Send(ctx context.Context, payload []byte) ([]byte, er
 	}
 
 	// Build command string — escape all args for safe shell interpolation.
-	// Wrap in "bash -l -c '...'" so the remote login profile is loaded
-	// (sets up PATH, e.g. /opt/homebrew/bin on macOS). We use bash rather
-	// than $SHELL because zsh -l only reads ~/.zprofile (which may not set
-	// up PATH) while bash -l reads ~/.bash_profile and ~/.profile where
-	// brew shellenv is more reliably configured for non-interactive use.
 	cmdParts := []string{shellEscape(t.config.Command)}
 	for _, a := range t.config.Args {
 		cmdParts = append(cmdParts, shellEscape(a))
 	}
 	cmdParts = append(cmdParts, shellEscape(userText))
 	innerCmd := strings.Join(cmdParts, " ")
-	cmdStr := "bash -l -c " + shellEscape(innerCmd)
+
+	// If the command is an absolute path, run it directly — no login shell
+	// needed since PATH resolution isn't required. For bare command names,
+	// wrap in "bash -l -c" so the remote login profile sets up PATH.
+	var cmdStr string
+	if strings.HasPrefix(t.config.Command, "/") {
+		cmdStr = innerCmd
+	} else {
+		cmdStr = "bash -l -c " + shellEscape(innerCmd)
+	}
 
 	// Create session and run
 	sess, err := t.client.NewSession()

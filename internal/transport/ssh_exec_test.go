@@ -275,6 +275,31 @@ func TestSSHExecTransport_Send_ShellEscaping(t *testing.T) {
 	}
 }
 
+func TestSSHExecTransport_Send_AbsolutePathSkipsLoginShell(t *testing.T) {
+	sess := &mockSSHExecSession{stdout: "ok"}
+	client := &mockSSHExecClient{sessions: []*mockSSHExecSession{sess}}
+
+	tr := &SSHExecTransport{
+		config: SSHExecConfig{Command: "/usr/local/bin/claude", Args: []string{"-p"}},
+		client: client,
+	}
+
+	_, err := tr.Send(context.Background(), makePayload(t, "hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := sess.lastCmd
+	// Absolute path: should NOT be wrapped in bash -l -c
+	if strings.HasPrefix(cmd, "bash -l -c ") {
+		t.Errorf("absolute path command should not use login shell wrapper, got %q", cmd)
+	}
+	// Should start with the escaped absolute path directly
+	if !strings.HasPrefix(cmd, "'/usr/local/bin/claude'") {
+		t.Errorf("command should start with escaped absolute path, got %q", cmd)
+	}
+}
+
 func TestSSHExecTransport_Close(t *testing.T) {
 	client := &mockSSHExecClient{}
 	tr := &SSHExecTransport{client: client}
