@@ -62,9 +62,9 @@ var knownCLIs = map[string]string{
 // registry after onboarding if needed.
 var knownCLIArgs = map[string]string{
 	"claude":   "-p --verbose --output-format json --dangerously-skip-permissions",
-	"codex":    "--quiet --full-auto",
+	"codex":    "--json --quiet --full-auto",
 	"aider":    "--yes-always",
-	"droid":    "--auto high",
+	"droid":    "--auto high -o json",
 	"opencode": "--quiet",
 }
 
