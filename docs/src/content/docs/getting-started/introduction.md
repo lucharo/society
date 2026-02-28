@@ -34,6 +34,14 @@ Here's what happens when Claude Code sends a message to a remote agent:
 
 ![Request flow: Claude Code calls MCP tools/call, society mcp looks up the agent in the registry, opens the transport (e.g. SSH tunnel), sends a POST tasks/send JSON-RPC request to the remote agent, and returns the response back through the chain](../../../assets/request-flow.png)
 
+## Trust model
+
+Society is built on trust. There is no authentication, no approval gates, and no permission system — agents accept and process any incoming message. This is by design.
+
+The assumption is that you own and control every machine in your network. You set up each one yourself, install the agents, and decide what they can do. Your private network (typically [Tailscale](https://tailscale.com) or a LAN) is the security boundary — only machines you've added can reach your agents.
+
+This means Society is not designed for untrusted environments. Don't expose agent ports to the public internet without additional protections. If you need stricter controls in the future (API keys, allowlists, per-agent permissions), those can be layered on — but for a personal network of machines you own, trust is the right default.
+
 ## Next steps
 
 - [Install society](/getting-started/installation/) to get the binary

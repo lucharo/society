@@ -7,6 +7,8 @@ Society agents don't automatically discover each other. The **registry** is what
 
 This guide walks through connecting agents across a local machine and a remote server step by step.
 
+> Society assumes all machines in your network are trusted — agents process any incoming message without authentication. See [Trust model](/getting-started/introduction/#trust-model) for details.
+
 ## The setup
 
 ```
