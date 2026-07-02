@@ -40,6 +40,6 @@ docs:
 # Install, clear registry, run onboard (for testing scan/group logic)
 try-onboard: install
     @for a in $(society list 2>/dev/null | awk 'NR>3{print $$1}'); do \
-        society remove "$$a" <<< "y" 2>/dev/null; \
+        society remove --force "$$a" 2>/dev/null; \
     done
     society onboard

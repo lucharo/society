@@ -8,7 +8,7 @@ import (
 	"github.com/luischavesdev/society/internal/registry"
 )
 
-func Remove(registryPath, name string, in io.Reader, out io.Writer) error {
+func Remove(registryPath, name string, force bool, in io.Reader, out io.Writer) error {
 	reg, err := registry.Load(registryPath)
 	if err != nil {
 		return fmt.Errorf("loading registry: %w", err)
@@ -18,10 +18,12 @@ func Remove(registryPath, name string, in io.Reader, out io.Writer) error {
 		return fmt.Errorf("agent %q not found", name)
 	}
 
-	r := bufio.NewReader(in)
-	if !promptYN(r, out, fmt.Sprintf("Remove agent %q?", name), false) {
-		fmt.Fprintln(out, "  Cancelled")
-		return nil
+	if !force {
+		r := bufio.NewReader(in)
+		if !promptYN(r, out, fmt.Sprintf("Remove agent %q?", name), false) {
+			fmt.Fprintln(out, "  Cancelled")
+			return nil
+		}
 	}
 
 	if err := reg.Remove(name); err != nil {

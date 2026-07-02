@@ -75,11 +75,14 @@ func main() {
 		err = cli.List(registryPath, os.Stdout)
 
 	case "remove":
-		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: society remove <name>")
+		removeFlags := flag.NewFlagSet("remove", flag.ExitOnError)
+		forceFlag := removeFlags.Bool("force", false, "Skip confirmation prompt")
+		removeFlags.Parse(os.Args[2:])
+		if removeFlags.NArg() < 1 {
+			fmt.Fprintln(os.Stderr, "usage: society remove [--force] <name>")
 			os.Exit(1)
 		}
-		err = cli.Remove(registryPath, os.Args[2], os.Stdin, os.Stdout)
+		err = cli.Remove(registryPath, removeFlags.Arg(0), *forceFlag, os.Stdin, os.Stdout)
 
 	case "ping":
 		if len(os.Args) < 3 {
@@ -229,7 +232,7 @@ Usage:
 Commands:
   onboard [--manual] [--deep] Auto-detect and register agents (--deep: probe SSH/Docker for live agents)
   list                       List all registered agents
-  remove <name>              Remove an agent
+  remove [--force] <name>    Remove an agent (--force: skip confirmation)
   ping <name>                Health-check an agent
   run --config <path>        Start an agent from config
   send <name> <message>      Send a message to an agent [--thread <id>]
