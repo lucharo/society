@@ -5,6 +5,7 @@ default:
 
 # Build and install to ~/.local/bin
 install:
+    mkdir -p ~/.local/bin
     go build -ldflags "-X main.version={{version}}" -o ~/.local/bin/society ./cmd/society
 
 # Unit tests (no network, no external deps)
