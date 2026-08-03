@@ -75,11 +75,14 @@ type TraceStyle struct {
 func PlainStyle() TraceStyle { return TraceStyle{} }
 
 func truncateRunes(value string, max int) string {
-	runes := []rune(value)
-	if len(runes) <= max {
-		return value
+	count := 0
+	for byteOffset := range value {
+		if count == max {
+			return value[:byteOffset] + "…"
+		}
+		count++
 	}
-	return string(runes[:max]) + "…"
+	return value
 }
 
 // FormatTrace renders verbose trace events as a readable conversation.

@@ -176,7 +176,8 @@ func TestFormatTrace_TruncationPreservesUTF8(t *testing.T) {
 	if !utf8.ValidString(got) {
 		t.Fatalf("FormatTrace() returned invalid UTF-8: %q", got)
 	}
-	if !strings.HasSuffix(got, "…") {
-		t.Fatalf("FormatTrace() did not truncate the result: %q", got)
+	want := strings.Repeat("a", 299) + "é…"
+	if got != want {
+		t.Fatalf("FormatTrace() = %q, want %q", got, want)
 	}
 }
