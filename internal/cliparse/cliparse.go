@@ -74,6 +74,14 @@ type TraceStyle struct {
 // PlainStyle returns a TraceStyle with no ANSI codes.
 func PlainStyle() TraceStyle { return TraceStyle{} }
 
+func truncateRunes(value string, max int) string {
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max]) + "…"
+}
+
 // FormatTrace renders verbose trace events as a readable conversation.
 // The final assistant text is omitted since it duplicates the main response.
 func FormatTrace(raw json.RawMessage, style TraceStyle) string {
@@ -124,10 +132,7 @@ func FormatTrace(raw json.RawMessage, style TraceStyle) string {
 						fmt.Fprintf(&b, "%s\n", c.Text)
 					}
 				case "tool_use":
-					inputStr := string(c.Input)
-					if len(inputStr) > 200 {
-						inputStr = inputStr[:200] + "…"
-					}
+					inputStr := truncateRunes(string(c.Input), 200)
 					fmt.Fprintf(&b, "%s> %s%s %s%s%s\n", style.ToolCall, c.Name, style.Reset, style.Dim, inputStr, style.Reset)
 				}
 			}
@@ -135,10 +140,7 @@ func FormatTrace(raw json.RawMessage, style TraceStyle) string {
 		case "user":
 			for _, c := range entry.Message.Content {
 				if c.Type == "tool_result" {
-					text := c.Content
-					if len(text) > 300 {
-						text = text[:300] + "…"
-					}
+					text := truncateRunes(c.Content, 300)
 					if c.IsError {
 						fmt.Fprintf(&b, "%s  %s✗ %s%s%s\n", style.Dim, style.Error, style.Reset, text, style.Reset)
 					} else {

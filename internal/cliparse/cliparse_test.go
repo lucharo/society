@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestParse(t *testing.T) {
@@ -163,5 +164,16 @@ func TestFormatTrace(t *testing.T) {
 func TestFormatTrace_EmptyForNil(t *testing.T) {
 	if got := FormatTrace(nil, PlainStyle()); got != "" {
 		t.Errorf("FormatTrace(nil) = %q, want empty", got)
+	}
+}
+
+func TestFormatTrace_TruncationPreservesUTF8(t *testing.T) {
+	input := `[{"type":"user","message":{"content":[{"type":"tool_result","content":"` + strings.Repeat("é", 301) + `"}]}}]`
+	got := FormatTrace(json.RawMessage(input), PlainStyle())
+	if !utf8.ValidString(got) {
+		t.Fatalf("FormatTrace() returned invalid UTF-8: %q", got)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Fatalf("FormatTrace() did not truncate the result: %q", got)
 	}
 }
