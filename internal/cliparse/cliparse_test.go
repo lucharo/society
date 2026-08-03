@@ -168,7 +168,10 @@ func TestFormatTrace_EmptyForNil(t *testing.T) {
 }
 
 func TestFormatTrace_TruncationPreservesUTF8(t *testing.T) {
-	input := `[{"type":"user","message":{"content":[{"type":"tool_result","content":"` + strings.Repeat("é", 301) + `"}]}}]`
+	// Byte 300 falls inside the two-byte é, so the former text[:300]
+	// implementation produced invalid UTF-8.
+	content := strings.Repeat("a", 299) + "éz"
+	input := `[{"type":"user","message":{"content":[{"type":"tool_result","content":"` + content + `"}]}}]`
 	got := FormatTrace(json.RawMessage(input), PlainStyle())
 	if !utf8.ValidString(got) {
 		t.Fatalf("FormatTrace() returned invalid UTF-8: %q", got)
